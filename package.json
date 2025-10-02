@@ -1,0 +1,59 @@
+{
+  "name": "spare-search-app-lavender",
+  "private": true,
+  "version": "1.2.0",
+  "main": "electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "lint": "eslint .",
+    "postinstall": "electron-rebuild",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.0.18",
+    "electron-is-dev": "^3.0.1",
+    "mssql": "^12.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-toastify": "^11.0.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.2.2",
+    "electron": "^35.2.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "eslint": "^8.38.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.3.4",
+    "postcss": "^8.4.23",
+    "tailwindcss": "^3.3.2",
+    "vite": "^4.3.9",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "appId": "com.lavender.sparesearch",
+    "productName": "Spare Parts Search",
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "release"
+    }
+  }
+}
