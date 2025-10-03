@@ -18,6 +18,7 @@ const sqlConfig = {
   user: 'sa',
   password: 'spareparts12345',
   server: 'localhost',
+  // server: '192.168.0.105', 
   port: 1433,
   database: 'SPAREDB',
   options: {

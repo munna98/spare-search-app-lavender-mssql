@@ -39,3 +39,9 @@ node test-connection.js
 6. Run Your App
 
 bashnpm run electron:dev
+
+
+****
+connection from node 
+
+sqlcmd -S 192.168.0.105,1433 -U sa -P spareparts12345

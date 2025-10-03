@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export default function PartSearchForm({ onSearch }) {
   const [input, setInput] = useState("");
@@ -8,6 +8,12 @@ export default function PartSearchForm({ onSearch }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim()) onSearch(input.trim(), searchMode);
+  };
+
+  const handleClear = () => {
+    setInput("");
+    // Clear results by calling onSearch with empty string
+    onSearch("", searchMode);
   };
 
   return (
@@ -20,12 +26,24 @@ export default function PartSearchForm({ onSearch }) {
           <label className="block text-sm font-semibold mb-1 text-gray-700">
             Part Number 
           </label>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter part number"
-          />
+          <div className="relative">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="w-full px-4 py-2 pr-10 border rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter part number"
+            />
+            {input && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                title="Clear search"
+              >
+                <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
         </div>
         <button
           type="submit"
