@@ -5,7 +5,7 @@ Complete Setup Instructions:
 Run in Command Prompt as Administrator:
 
 
-cmdsqlcmd -S localhost\SPARESEARCH -E
+sqlcmd -S localhost\SPARESEARCH -E
 
 
 Then run these commands:

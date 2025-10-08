@@ -3,18 +3,33 @@ import {
   ArrowLeftIcon, 
   DocumentArrowDownIcon, 
   TrashIcon,
-  DocumentIcon 
+  DocumentIcon,
+  ServerIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
+import DatabaseConfigModal from './DatabaseConfigModal';
 
-export default function Settings({ onBack }) {
+export default function Settings({ onBack, onReconfigure }) {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dbConfig, setDbConfig] = useState(null);
+  const [showDbConfig, setShowDbConfig] = useState(false);
 
   useEffect(() => {
-    // Load uploaded files when component mounts
     loadUploadedFiles();
+    loadDatabaseConfig();
   }, []);
+
+  const loadDatabaseConfig = async () => {
+    try {
+      const response = await window.electronAPI.checkConfig();
+      if (response.configured && response.config) {
+        setDbConfig(response.config);
+      }
+    } catch (error) {
+      console.error('Error loading database config:', error);
+    }
+  };
 
   const loadUploadedFiles = async () => {
     try {
@@ -32,7 +47,6 @@ export default function Settings({ onBack }) {
   const handleImportFile = async () => {
     setLoading(true);
     try {
-      // Open file dialog
       const fileResponse = await window.electronAPI.openFile();
       
       if (!fileResponse.success) {
@@ -40,12 +54,10 @@ export default function Settings({ onBack }) {
         return;
       }
       
-      // Import the selected file
       const importResponse = await window.electronAPI.importFile(fileResponse.filePath);
       
       if (importResponse.success) {
         toast.success(importResponse.message);
-        // Reload the files list
         await loadUploadedFiles();
       } else {
         toast.error(`Import failed: ${importResponse.message}`);
@@ -67,7 +79,6 @@ export default function Settings({ onBack }) {
       
       if (response.success) {
         toast.success('File removed successfully');
-        // Reload the files list
         await loadUploadedFiles();
       } else {
         toast.error(`Failed to remove file: ${response.message}`);
@@ -75,6 +86,10 @@ export default function Settings({ onBack }) {
     } catch (error) {
       toast.error(`An error occurred: ${error.message}`);
     }
+  };
+
+  const handleOpenDbConfig = () => {
+    setShowDbConfig(true);
   };
 
   const formatFileSize = (bytes) => {
@@ -101,14 +116,26 @@ export default function Settings({ onBack }) {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={onBack}
-          className="mr-4 p-2 rounded-md hover:bg-gray-100"
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <button 
+            onClick={onBack}
+            className="mr-4 p-2 rounded-md hover:bg-gray-100"
+          >
+            <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        </div>
+        
+        {/* Small DB Config Button in Top Right */}
+        <button
+          onClick={handleOpenDbConfig}
+          className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center text-sm border border-gray-300"
+          title="Database Configuration"
         >
-          <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+          <ServerIcon className="h-4 w-4 mr-1" />
+          DB Config
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
       </div>
 
       {/* Import File Section */}
@@ -151,7 +178,9 @@ export default function Settings({ onBack }) {
                     <div className="text-sm text-gray-500 space-x-4">
                       <span>{formatFileSize(file.size)}</span>
                       <span>•</span>
-                      <span>{file.recordCount} records</span>
+                      <span>{file.record_count} records</span>
+                      <span>•</span>
+                      <span>Brand: {file.brand || 'Unknown'}</span>
                       <span>•</span>
                       <span>Uploaded: {formatDate(file.uploaded_at)}</span>
                     </div>
@@ -169,6 +198,13 @@ export default function Settings({ onBack }) {
           </div>
         )}
       </div>
+
+      {/* Database Configuration Modal */}
+      <DatabaseConfigModal 
+        isOpen={showDbConfig}
+        onClose={() => setShowDbConfig(false)}
+        onReconfigure={onReconfigure}
+      />
     </div>
   );
 }
