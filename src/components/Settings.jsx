@@ -1,19 +1,24 @@
+// src/components/Settings.jsx
 import React, { useState, useEffect } from "react";
 import { 
   ArrowLeftIcon, 
   DocumentArrowDownIcon, 
   TrashIcon,
   DocumentIcon,
-  ServerIcon
+  ServerIcon,
+  QrCodeIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import DatabaseConfigModal from './DatabaseConfigModal';
+import BarcodeConfiguration from './BarcodeConfiguration';
 
 export default function Settings({ onBack, onReconfigure }) {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dbConfig, setDbConfig] = useState(null);
   const [showDbConfig, setShowDbConfig] = useState(false);
+  // Add the missing state
+  const [showBarcodeConfig, setShowBarcodeConfig] = useState(false);
 
   useEffect(() => {
     loadUploadedFiles();
@@ -92,6 +97,10 @@ export default function Settings({ onBack, onReconfigure }) {
     setShowDbConfig(true);
   };
 
+  const handleOpenBarcodeConfig = () => {
+    setShowBarcodeConfig(true);
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -120,34 +129,48 @@ export default function Settings({ onBack, onReconfigure }) {
         <div className="flex items-center">
           <button 
             onClick={onBack}
-            className="mr-4 p-2 rounded-md hover:bg-gray-100"
+            className="mr-4 p-2 rounded-md hover:bg-gray-100 transition-colors"
           >
             <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
           </button>
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         </div>
         
-        {/* Small DB Config Button in Top Right */}
-        <button
-          onClick={handleOpenDbConfig}
-          className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center text-sm border border-gray-300"
-          title="Database Configuration"
-        >
-          <ServerIcon className="h-4 w-4 mr-1" />
-          DB Config
-        </button>
+        {/* Configuration Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleOpenBarcodeConfig}
+            className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center text-sm border border-purple-700 transition-colors shadow-sm"
+            title="Barcode Configuration"
+          >
+            <QrCodeIcon className="h-4 w-4 mr-1.5" />
+            Barcode Config
+          </button>
+          
+          <button
+            onClick={handleOpenDbConfig}
+            className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center text-sm border border-gray-300 transition-colors"
+            title="Database Configuration"
+          >
+            <ServerIcon className="h-4 w-4 mr-1.5" />
+            DB Config
+          </button>
+        </div>
       </div>
 
       {/* Import File Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Import Data</h2>
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <DocumentArrowDownIcon className="h-6 w-6 mr-2 text-blue-600" />
+          Import Data
+        </h2>
         <p className="text-gray-600 mb-4">
-          Import Excel files containing spare parts data into the system.
+          Import Excel files containing spare parts data into the system. The system will automatically extract brand information and part details.
         </p>
         <button 
           onClick={handleImportFile}
           disabled={loading}
-          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium transition-colors shadow-sm"
         >
           <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
           {loading ? 'Importing...' : 'Import Excel File'}
@@ -155,13 +178,19 @@ export default function Settings({ onBack, onReconfigure }) {
       </div>
 
       {/* Uploaded Files Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Uploaded Files</h2>
+      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+          <DocumentIcon className="h-6 w-6 mr-2 text-green-600" />
+          Uploaded Files
+          <span className="ml-2 text-sm font-normal text-gray-500">
+            ({uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''})
+          </span>
+        </h2>
         
         {uploadedFiles.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <DocumentIcon className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p>No files uploaded yet</p>
+          <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <DocumentIcon className="h-16 w-16 mx-auto mb-3 text-gray-300" />
+            <p className="text-lg font-medium mb-1">No files uploaded yet</p>
             <p className="text-sm">Import your first Excel file to get started</p>
           </div>
         ) : (
@@ -169,26 +198,45 @@ export default function Settings({ onBack, onReconfigure }) {
             {uploadedFiles.map((file) => (
               <div 
                 key={file.id} 
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors"
               >
-                <div className="flex items-center space-x-3">
-                  <DocumentIcon className="h-8 w-8 text-green-600" />
-                  <div>
-                    <h3 className="font-medium text-gray-900">{file.name}</h3>
-                    <div className="text-sm text-gray-500 space-x-4">
-                      <span>{formatFileSize(file.size)}</span>
-                      <span>•</span>
-                      <span>{file.record_count} records</span>
-                      <span>•</span>
-                      <span>Brand: {file.brand || 'Unknown'}</span>
-                      <span>•</span>
-                      <span>Uploaded: {formatDate(file.uploaded_at)}</span>
+                <div className="flex items-center space-x-3 flex-1">
+                  <div className="flex-shrink-0">
+                    <DocumentIcon className="h-10 w-10 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
+                    <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                      <span className="flex items-center">
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        {formatFileSize(file.size)}
+                      </span>
+                      <span className="flex items-center">
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {file.record_count.toLocaleString()} records
+                      </span>
+                      <span className="flex items-center font-medium text-blue-600">
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        {file.brand || 'Unknown'}
+                      </span>
+                      <span className="flex items-center">
+                        <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {formatDate(file.uploaded_at)}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <button
                   onClick={() => handleRemoveFile(file.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-md"
+                  className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                   title="Remove file"
                 >
                   <TrashIcon className="h-5 w-5" />
@@ -204,6 +252,12 @@ export default function Settings({ onBack, onReconfigure }) {
         isOpen={showDbConfig}
         onClose={() => setShowDbConfig(false)}
         onReconfigure={onReconfigure}
+      />
+
+      {/* Barcode Configuration Modal */}
+      <BarcodeConfiguration
+        isOpen={showBarcodeConfig}
+        onClose={() => setShowBarcodeConfig(false)}
       />
     </div>
   );
