@@ -38,11 +38,17 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
     initialize();
   }, [isReconfigure]);
 
-  const detectLocalIPs = async () => {
+    const detectLocalIPs = async () => {
     setLoadingIPs(true);
     try {
       const ips = await window.electronAPI.getLocalIPAddresses();
+      const hostname = await window.electronAPI.getHostname();
       setLocalIPs(ips);
+      
+      // Add hostname as first option
+      if (hostname) {
+        setLocalIPs([hostname, ...ips]);
+      }
     } catch (error) {
       console.error('Error detecting IP addresses:', error);
       toast.error('Could not detect network IP addresses');
@@ -50,7 +56,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
       setLoadingIPs(false);
     }
   };
-
+  
   const loadExistingConfig = async () => {
     try {
       const response = await window.electronAPI.checkConfig();

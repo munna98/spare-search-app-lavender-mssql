@@ -1,7 +1,7 @@
 {
   "name": "spare-search-app-lavender",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0",
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
@@ -44,7 +44,8 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "assets/icon.ico"
     },
     "appId": "com.lavender.sparesearch",
     "productName": "Spare Parts Search",

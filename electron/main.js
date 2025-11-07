@@ -515,6 +515,15 @@ ipcMain.handle('network:getLocalIPs', () => {
     return [];
   }
 });
+// Get hostname
+ipcMain.handle('network:getHostname', () => {
+  try {
+    return os.hostname();
+  } catch (error) {
+    console.error('Error getting hostname:', error);
+    return null;
+  }
+});
 
 ipcMain.handle('dialog:openFile', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({

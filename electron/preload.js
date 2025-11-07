@@ -19,5 +19,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeFile: (fileId) => ipcRenderer.invoke('db:removeFile', fileId),
   
   // Network operations
-  getLocalIPAddresses: () => ipcRenderer.invoke('network:getLocalIPs')
+  getLocalIPAddresses: () => ipcRenderer.invoke('network:getLocalIPs'),
+  getHostname: () => ipcRenderer.invoke('network:getHostname')
 });
