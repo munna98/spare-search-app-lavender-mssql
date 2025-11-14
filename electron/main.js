@@ -13,11 +13,14 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 let pool;
+let stockPool; // Second connection for stock database
 let currentConfig = null;
+let stockConfig = null;
 let connectionHealthInterval = null;
 
-// Path to store configuration
+// Path to store configurations
 const configPath = path.join(app.getPath('userData'), 'db-config.json');
+const stockConfigPath = path.join(app.getPath('userData'), 'stock-config.json');
 
 // Load saved configuration
 function loadConfig() {
@@ -43,17 +46,43 @@ function saveConfig(config) {
   }
 }
 
-// Build SQL config from user settings
-function buildSqlConfig(userConfig, existingConfig = null, useMaster = false) {
-  // If reconfiguring and password is empty, use existing password
+// Load stock database configuration
+function loadStockConfig() {
+  try {
+    if (fs.existsSync(stockConfigPath)) {
+      const data = fs.readFileSync(stockConfigPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading stock config:', error);
+  }
+  return null;
+}
+
+// Save stock database configuration
+function saveStockConfig(config) {
+  try {
+    fs.writeFileSync(stockConfigPath, JSON.stringify(config, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.error('Error saving stock config:', error);
+    return false;
+  }
+}
+
+// Build SQL config from user settings - with explicit database parameter
+function buildSqlConfig(userConfig, existingConfig = null, useMaster = false, targetDatabase = null) {
   const password = userConfig.password || (existingConfig ? existingConfig.password : '');
+  
+  // Use targetDatabase if provided, otherwise use the database from userConfig
+  const database = targetDatabase || (useMaster ? 'master' : userConfig.database);
   
   return {
     user: userConfig.username,
     password: password,
     server: userConfig.server,
     port: userConfig.port || 1433,
-    database: useMaster ? 'master' : userConfig.database,
+    database: database,
     options: {
       encrypt: userConfig.encrypt || false,
       trustServerCertificate: true,
@@ -74,11 +103,9 @@ async function ensureDatabaseExists(config) {
   try {
     console.log(`Checking if database '${config.database}' exists...`);
     
-    // Connect to master database
     const masterConfig = buildSqlConfig(config, null, true);
     masterPool = await sql.connect(masterConfig);
     
-    // Check if database exists
     const checkResult = await masterPool.request()
       .input('dbName', sql.NVarChar, config.database)
       .query(`
@@ -89,11 +116,8 @@ async function ensureDatabaseExists(config) {
     
     if (checkResult.recordset.length === 0) {
       console.log(`Database '${config.database}' does not exist. Creating...`);
-      
-      // Create the database
       await masterPool.request()
         .query(`CREATE DATABASE [${config.database}]`);
-      
       console.log(`Database '${config.database}' created successfully`);
     } else {
       console.log(`Database '${config.database}' already exists`);
@@ -112,24 +136,294 @@ async function ensureDatabaseExists(config) {
 async function testConnection(config) {
   let testPool;
   try {
-    // Load existing config for password if needed
     const existingConfig = loadConfig();
-    
-    // First, ensure the database exists
     await ensureDatabaseExists(config);
     
-    // Then test connection to the actual database
     const sqlConfig = buildSqlConfig(config, existingConfig);
     testPool = await sql.connect(sqlConfig);
-    
-    // Test a simple query
     await testPool.request().query('SELECT 1');
-    
     await testPool.close();
+    
     return { success: true, message: 'Connection successful and database is ready' };
   } catch (error) {
     if (testPool) await testPool.close();
     return { success: false, message: error.message };
+  }
+}
+
+// Diagnostic function for stock connection
+async function diagnoseStockConnection(config) {
+  let testPool;
+  try {
+    // Connect to master first to check if database exists
+    const masterConfig = buildSqlConfig(config, null, true); // Connect to master
+    testPool = await sql.connect(masterConfig);
+    
+    // Check if database exists
+    const dbExists = await testPool.request()
+      .input('dbName', sql.NVarChar, config.database)
+      .query(`
+        SELECT 
+          name,
+          state_desc,
+          user_access_desc
+        FROM sys.databases 
+        WHERE name = @dbName
+      `);
+    
+    if (dbExists.recordset.length === 0) {
+      await testPool.close();
+      return { 
+        success: false, 
+        message: `Database '${config.database}' does not exist on server '${config.server}'. Please create the database first.` 
+      };
+    }
+    
+    const dbInfo = dbExists.recordset[0];
+    await testPool.close();
+    
+    // Now connect to the actual stock database
+    const actualConfig = buildSqlConfig(config, null, false, config.database);
+    testPool = await sql.connect(actualConfig);
+    
+    // Check what database we're actually connected to
+    const currentDb = await testPool.request().query(`SELECT DB_NAME() AS CurrentDatabase`);
+    console.log('Actually connected to database:', currentDb.recordset[0].CurrentDatabase);
+    
+    // Check table existence
+    const tablesCheck = await testPool.request().query(`
+      SELECT 
+        TABLE_SCHEMA,
+        TABLE_NAME,
+        TABLE_TYPE
+      FROM INFORMATION_SCHEMA.TABLES 
+      WHERE TABLE_NAME IN ('inv_Product', 'inv_Stock')
+      ORDER BY TABLE_NAME
+    `);
+    
+    console.log('Tables found in stock database:', tablesCheck.recordset);
+    
+    await testPool.close();
+    
+    if (tablesCheck.recordset.length === 0) {
+      return {
+        success: false,
+        message: `Connected to database '${currentDb.recordset[0].CurrentDatabase}' but no required tables found. Please check if inv_Product and inv_Stock tables exist in this database.`
+      };
+    }
+    
+    const foundProductTable = tablesCheck.recordset.some(t => t.TABLE_NAME === 'inv_Product');
+    const foundStockTable = tablesCheck.recordset.some(t => t.TABLE_NAME === 'inv_Stock');
+    
+    return {
+      success: foundProductTable && foundStockTable,
+      message: `Diagnostic complete. Database: ${currentDb.recordset[0].CurrentDatabase}. Found tables: ${tablesCheck.recordset.map(t => t.TABLE_NAME).join(', ')}`,
+      details: {
+        database: currentDb.recordset[0],
+        tables: tablesCheck.recordset,
+        hasRequiredTables: foundProductTable && foundStockTable
+      }
+    };
+    
+  } catch (error) {
+    if (testPool) await testPool.close();
+    return { 
+      success: false, 
+      message: `Diagnostic failed: ${error.message}` 
+    };
+  }
+}
+
+// Test stock database connection
+async function testStockConnection(config) {
+  // First run diagnostic
+  const diagnostic = await diagnoseStockConnection(config);
+  console.log('Connection diagnostic:', diagnostic);
+  
+  if (!diagnostic.success) {
+    return diagnostic;
+  }
+  
+  // If diagnostic passed, try the actual connection
+  let testPool;
+  try {
+    const existingConfig = loadStockConfig();
+    
+    // Use the database from the config being tested, not the existing one
+    const sqlConfig = buildSqlConfig(config, existingConfig, false, config.database);
+    
+    console.log('Testing connection to:', {
+      server: config.server,
+      database: config.database,
+      username: config.username
+    });
+    
+    testPool = await sql.connect(sqlConfig);
+    
+    // First, let's check what databases are available and if we're connected to the right one
+    const dbCheck = await testPool.request().query(`
+      SELECT DB_NAME() AS CurrentDatabase
+    `);
+    
+    console.log('Connected to database:', dbCheck.recordset[0].CurrentDatabase);
+    
+    // Check if tables exist in the current database
+    const tablesResult = await testPool.request().query(`
+      SELECT 
+        TABLE_NAME,
+        TABLE_TYPE
+      FROM INFORMATION_SCHEMA.TABLES 
+      WHERE TABLE_NAME IN ('inv_Product', 'inv_Stock')
+      ORDER BY TABLE_NAME
+    `);
+    
+    console.log('Found tables:', tablesResult.recordset);
+    
+    // More detailed table check
+    const detailedCheck = await testPool.request().query(`
+      SELECT 
+        CASE WHEN EXISTS (
+          SELECT 1 FROM INFORMATION_SCHEMA.TABLES 
+          WHERE TABLE_NAME = 'inv_Product' AND TABLE_TYPE = 'BASE TABLE'
+        ) THEN 1 ELSE 0 END AS hasProducts,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM INFORMATION_SCHEMA.TABLES 
+          WHERE TABLE_NAME = 'inv_Stock' AND TABLE_TYPE = 'BASE TABLE'
+        ) THEN 1 ELSE 0 END AS hasStockTable
+    `);
+    
+    const { hasProducts, hasStockTable } = detailedCheck.recordset[0];
+    await testPool.close();
+    
+    if (!hasProducts) {
+      return { 
+        success: false, 
+        message: `inv_Product table not found in database '${dbCheck.recordset[0].CurrentDatabase}'. Found tables: ${tablesResult.recordset.map(t => t.TABLE_NAME).join(', ') || 'None'}` 
+      };
+    }
+    if (!hasStockTable) {
+      return { 
+        success: false, 
+        message: `inv_Stock table not found in database '${dbCheck.recordset[0].CurrentDatabase}'. Found tables: ${tablesResult.recordset.map(t => t.TABLE_NAME).join(', ') || 'None'}` 
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: `Stock database connection successful. Connected to '${dbCheck.recordset[0].CurrentDatabase}' and found required tables.` 
+    };
+  } catch (error) {
+    if (testPool) await testPool.close();
+    console.error('Stock connection test error:', error);
+    return { 
+      success: false, 
+      message: `Connection error: ${error.message}` 
+    };
+  }
+}
+
+// Initialize stock database connection
+async function initializeStockDatabase(config) {
+  try {
+    if (stockPool) {
+      await stockPool.close();
+    }
+    
+    // Explicitly use the stock database from config
+    const sqlConfig = buildSqlConfig(config, null, false, config.database);
+    stockPool = await sql.connect(sqlConfig);
+    console.log(`Connected to Stock Database - Server: ${config.server}, Database: ${config.database}`);
+    
+    stockConfig = config;
+    return { success: true };
+  } catch (error) {
+    console.error('Stock database initialization error:', error);
+    throw error;
+  }
+}
+
+// Get stock information for a single part number
+async function getStockForPartNumber(partNumber) {
+  if (!stockPool || !stockPool.connected) {
+    return { stockQty: null, error: 'Stock database not connected' };
+  }
+  
+  try {
+    const request = stockPool.request();
+    request.input('partNumber', sql.NVarChar, partNumber);
+    
+    const result = await request.query(`
+      SELECT 
+        p.ProductID,
+        p.PartNumber,
+        ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+      FROM 
+        dbo.inv_Product p
+      LEFT JOIN 
+        dbo.inv_Stock s ON p.ProductID = s.ProductID
+      WHERE 
+        p.PartNumber = @partNumber
+      GROUP BY 
+        p.ProductID,
+        p.PartNumber
+    `);
+    
+    if (result.recordset.length > 0) {
+      return { 
+        stockQty: result.recordset[0].StockQty,
+        productId: result.recordset[0].ProductID 
+      };
+    }
+    
+    return { stockQty: null }; // Product not found in stock database
+  } catch (error) {
+    console.error('Error fetching stock:', error);
+    return { stockQty: null, error: error.message };
+  }
+}
+
+// Get stock information for multiple part numbers (batch)
+async function getStockForPartNumbers(partNumbers) {
+  if (!stockPool || !stockPool.connected) {
+    return {};
+  }
+  
+  try {
+    // Create a temporary table with part numbers
+    const request = stockPool.request();
+    
+    // Build IN clause
+    const partNumbersList = partNumbers.map(pn => `'${pn.replace(/'/g, "''")}'`).join(',');
+    
+    const result = await request.query(`
+      SELECT 
+        p.ProductID,
+        p.PartNumber,
+        ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+      FROM 
+        dbo.inv_Product p
+      LEFT JOIN 
+        dbo.inv_Stock s ON p.ProductID = s.ProductID
+      WHERE 
+        p.PartNumber IN (${partNumbersList})
+      GROUP BY 
+        p.ProductID,
+        p.PartNumber
+    `);
+    
+    // Create a map of partNumber -> stockQty
+    const stockMap = {};
+    result.recordset.forEach(row => {
+      stockMap[row.PartNumber] = {
+        stockQty: row.StockQty,
+        productId: row.ProductID
+      };
+    });
+    
+    return stockMap;
+  } catch (error) {
+    console.error('Error fetching stock batch:', error);
+    return {};
   }
 }
 
@@ -140,14 +434,12 @@ async function checkConnectionStatus() {
   }
   
   try {
-    // Check if pool is connected
     if (!pool.connected) {
       return { connected: false, error: 'Pool not connected' };
     }
     
-    // Try a simple query with timeout
     const request = pool.request();
-    request.timeout = 5000; // 5 second timeout
+    request.timeout = 5000;
     await request.query('SELECT 1 as test');
     return { connected: true };
   } catch (error) {
@@ -158,18 +450,15 @@ async function checkConnectionStatus() {
 
 // Start connection health monitoring
 function startConnectionHealthCheck() {
-  // Clear any existing interval
   if (connectionHealthInterval) {
     clearInterval(connectionHealthInterval);
   }
   
-  // Check connection health every 30 seconds
   connectionHealthInterval = setInterval(async () => {
     if (!currentConfig) return;
     
     const status = await checkConnectionStatus();
     
-    // If connection lost, try to reconnect
     if (!status.connected && pool) {
       console.log('Connection lost, attempting to reconnect...');
       try {
@@ -192,21 +481,31 @@ function startConnectionHealthCheck() {
         }
       }
     }
-  }, 30000); // Check every 30 seconds
+    
+    // Also check stock database if configured
+    if (stockConfig && stockPool) {
+      try {
+        if (!stockPool.connected) {
+          console.log('Stock database connection lost, attempting to reconnect...');
+          await initializeStockDatabase(stockConfig);
+          console.log('Stock database reconnection successful');
+        }
+      } catch (error) {
+        console.error('Stock database reconnection failed:', error);
+      }
+    }
+  }, 30000);
 }
 
 // Initialize database & tables
 async function initializeDatabase(config) {
   try {
-    // Ensure database exists first
     await ensureDatabaseExists(config);
     
-    // Connect to the database
     const sqlConfig = buildSqlConfig(config);
     pool = await sql.connect(sqlConfig);
     console.log(`Connected to MSSQL Server - Database: ${config.database}`);
 
-    // Create tables if not exist
     await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='uploaded_files' AND xtype='U')
       CREATE TABLE uploaded_files (
@@ -241,7 +540,6 @@ async function initializeDatabase(config) {
     console.log('Database tables initialized');
     currentConfig = config;
     
-    // Start health monitoring
     startConnectionHealthCheck();
     
     return { success: true };
@@ -355,22 +653,39 @@ function createWindow() {
 
 // App lifecycle
 app.whenReady().then(async () => {
-  // Load saved configuration
   const savedConfig = loadConfig();
+  const savedStockConfig = loadStockConfig();
   
   createWindow();
 
-  // If config exists, try to connect
   if (savedConfig) {
     try {
       await initializeDatabase(savedConfig);
-      mainWindow.webContents.send('config:status', { configured: true, connected: true });
+      
+      // Try to initialize stock database if configured
+      if (savedStockConfig) {
+        try {
+          await initializeStockDatabase(savedStockConfig);
+          console.log('Stock database connected');
+        } catch (error) {
+          console.error('Failed to connect to stock database:', error);
+        }
+      }
+      
+      mainWindow.webContents.send('config:status', { 
+        configured: true, 
+        connected: true,
+        stockConfigured: !!savedStockConfig
+      });
     } catch (error) {
       console.error('Failed to connect with saved config:', error);
-      mainWindow.webContents.send('config:status', { configured: true, connected: false, error: error.message });
+      mainWindow.webContents.send('config:status', { 
+        configured: true, 
+        connected: false, 
+        error: error.message 
+      });
     }
   } else {
-    // No configuration, show setup wizard
     mainWindow.webContents.send('config:status', { configured: false, connected: false });
   }
 
@@ -380,13 +695,13 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', async () => {
-  // Clear health check interval
   if (connectionHealthInterval) {
     clearInterval(connectionHealthInterval);
   }
   
   if (process.platform !== 'darwin') {
     if (pool) await pool.close();
+    if (stockPool) await stockPool.close();
     app.quit();
   }
 });
@@ -394,23 +709,33 @@ app.on('window-all-closed', async () => {
 // IPC handlers
 ipcMain.handle('config:check', async () => {
   const config = loadConfig();
+  const stockConf = loadStockConfig();
+  
   if (!config) {
-    return { configured: false, connected: false };
+    return { configured: false, connected: false, stockConfigured: false };
   }
   
-  // Check if connection is still alive
   const connectionStatus = await checkConnectionStatus();
   
-  // If not connected but we have a config, try to reconnect
   if (!connectionStatus.connected && pool === null) {
     try {
       console.log('Attempting to reconnect to database...');
       await initializeDatabase(config);
+      
+      if (stockConf) {
+        try {
+          await initializeStockDatabase(stockConf);
+        } catch (error) {
+          console.error('Failed to reconnect stock database:', error);
+        }
+      }
+      
       const retryStatus = await checkConnectionStatus();
       
       return {
         configured: true,
         connected: retryStatus.connected,
+        stockConfigured: !!stockConf,
         config: {
           server: config.server,
           port: config.port,
@@ -425,6 +750,7 @@ ipcMain.handle('config:check', async () => {
       return {
         configured: true,
         connected: false,
+        stockConfigured: !!stockConf,
         config: {
           server: config.server,
           port: config.port,
@@ -437,10 +763,10 @@ ipcMain.handle('config:check', async () => {
     }
   }
   
-  // Return config without password for security
   return {
     configured: true,
     connected: connectionStatus.connected,
+    stockConfigured: !!stockConf,
     config: {
       server: config.server,
       port: config.port,
@@ -448,6 +774,13 @@ ipcMain.handle('config:check', async () => {
       username: config.username,
       encrypt: config.encrypt
     },
+    stockConfig: stockConf ? {
+      server: stockConf.server,
+      port: stockConf.port,
+      database: stockConf.database,
+      username: stockConf.username,
+      encrypt: stockConf.encrypt
+    } : null,
     error: connectionStatus.error
   };
 });
@@ -458,39 +791,89 @@ ipcMain.handle('config:test', async (event, config) => {
 
 ipcMain.handle('config:save', async (event, config) => {
   try {
-    // Load existing config
     const existingConfig = loadConfig();
     
-    // If password is empty and we have existing config, keep the old password
     let configToSave = { ...config };
     if (!config.password && existingConfig && existingConfig.password) {
       configToSave.password = existingConfig.password;
     }
 
-    // Test connection first with the complete config (this will also create the database)
     const testResult = await testConnection(configToSave);
     if (!testResult.success) {
       return { success: false, message: `Connection test failed: ${testResult.message}` };
     }
 
-    // Save configuration
     if (!saveConfig(configToSave)) {
       return { success: false, message: 'Failed to save configuration file' };
     }
 
-    // Close existing connection if any
     if (pool) {
       await pool.close();
       pool = null;
     }
 
-    // Initialize with new config
     await initializeDatabase(configToSave);
 
     return { success: true, message: 'Configuration saved and database connected successfully' };
   } catch (error) {
     return { success: false, message: error.message };
   }
+});
+
+// Stock database configuration handlers
+ipcMain.handle('stock:test', async (event, config) => {
+  return await testStockConnection(config);
+});
+
+ipcMain.handle('stock:save', async (event, config) => {
+  try {
+    const existingConfig = loadStockConfig();
+    
+    let configToSave = { ...config };
+    if (!config.password && existingConfig && existingConfig.password) {
+      configToSave.password = existingConfig.password;
+    }
+
+    const testResult = await testStockConnection(configToSave);
+    if (!testResult.success) {
+      return { success: false, message: `Connection test failed: ${testResult.message}` };
+    }
+
+    if (!saveStockConfig(configToSave)) {
+      return { success: false, message: 'Failed to save stock configuration file' };
+    }
+
+    if (stockPool) {
+      await stockPool.close();
+      stockPool = null;
+    }
+
+    await initializeStockDatabase(configToSave);
+
+    return { success: true, message: 'Stock database configured successfully' };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('stock:checkConfig', async () => {
+  const config = loadStockConfig();
+  return {
+    configured: !!config,
+    connected: stockPool ? stockPool.connected : false,
+    config: config ? {
+      server: config.server,
+      port: config.port,
+      database: config.database,
+      username: config.username,
+      encrypt: config.encrypt
+    } : null
+  };
+});
+
+// Diagnostic handler
+ipcMain.handle('stock:diagnose', async (event, config) => {
+  return await diagnoseStockConnection(config);
 });
 
 // Network IP detection
@@ -501,21 +884,19 @@ ipcMain.handle('network:getLocalIPs', () => {
     
     for (const interfaceName of Object.keys(interfaces)) {
       for (const networkInterface of interfaces[interfaceName]) {
-        // Skip internal and non-IPv4 addresses
         if (networkInterface.family === 'IPv4' && !networkInterface.internal) {
           addresses.push(networkInterface.address);
         }
       }
     }
     
-    // Remove duplicates and return
     return [...new Set(addresses)];
   } catch (error) {
     console.error('Error getting local IP addresses:', error);
     return [];
   }
 });
-// Get hostname
+
 ipcMain.handle('network:getHostname', () => {
   try {
     return os.hostname();
@@ -537,9 +918,7 @@ ipcMain.handle('dialog:openFile', async () => {
 
 ipcMain.handle('db:importFile', async (event, filePath) => {
   try {
-    // Check if pool exists and is connected
     if (!pool) {
-      // Try to reconnect if we have a config
       const config = loadConfig();
       if (config) {
         try {
@@ -563,9 +942,7 @@ ipcMain.handle('db:importFile', async (event, filePath) => {
 });
 
 ipcMain.handle('db:searchParts', async (event, searchParams) => {
-  // Check if pool exists and is connected
   if (!pool) {
-    // Try to reconnect if we have a config
     const config = loadConfig();
     if (config) {
       try {
@@ -624,6 +1001,24 @@ ipcMain.handle('db:searchParts', async (event, searchParams) => {
       price_vat: row.price_vat || 0,
       brand: row.brand || 'Unknown',
     }));
+
+    // Fetch stock information for all results if stock database is connected
+    if (stockPool && stockPool.connected && formattedResults.length > 0) {
+      try {
+        const partNumbers = formattedResults.map(r => r.partNumber);
+        const stockMap = await getStockForPartNumbers(partNumbers);
+        
+        // Add stock information to results
+        formattedResults.forEach(result => {
+          const stockInfo = stockMap[result.partNumber];
+          result.stockQty = stockInfo ? stockInfo.stockQty : null;
+          result.productId = stockInfo ? stockInfo.productId : null;
+        });
+      } catch (stockError) {
+        console.error('Error fetching stock information:', stockError);
+        // Continue without stock information
+      }
+    }
 
     return { success: true, results: formattedResults };
   } catch (err) {

@@ -6,23 +6,27 @@ import {
   TrashIcon,
   DocumentIcon,
   ServerIcon,
-  QrCodeIcon
+  QrCodeIcon,
+  CubeIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import DatabaseConfigModal from './DatabaseConfigModal';
+import StockDatabaseConfig from './StockDatabaseConfig';
 import BarcodeConfiguration from './BarcodeConfiguration';
 
 export default function Settings({ onBack, onReconfigure }) {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dbConfig, setDbConfig] = useState(null);
+  const [stockDbConfig, setStockDbConfig] = useState(null);
   const [showDbConfig, setShowDbConfig] = useState(false);
-  // Add the missing state
+  const [showStockDbConfig, setShowStockDbConfig] = useState(false);
   const [showBarcodeConfig, setShowBarcodeConfig] = useState(false);
 
   useEffect(() => {
     loadUploadedFiles();
     loadDatabaseConfig();
+    loadStockDatabaseConfig();
   }, []);
 
   const loadDatabaseConfig = async () => {
@@ -33,6 +37,17 @@ export default function Settings({ onBack, onReconfigure }) {
       }
     } catch (error) {
       console.error('Error loading database config:', error);
+    }
+  };
+
+  const loadStockDatabaseConfig = async () => {
+    try {
+      const response = await window.electronAPI.checkStockConfig();
+      if (response.configured && response.config) {
+        setStockDbConfig(response.config);
+      }
+    } catch (error) {
+      console.error('Error loading stock database config:', error);
     }
   };
 
@@ -97,8 +112,17 @@ export default function Settings({ onBack, onReconfigure }) {
     setShowDbConfig(true);
   };
 
+  const handleOpenStockDbConfig = () => {
+    setShowStockDbConfig(true);
+  };
+
   const handleOpenBarcodeConfig = () => {
     setShowBarcodeConfig(true);
+  };
+
+  const handleStockConfigSuccess = () => {
+    loadStockDatabaseConfig();
+    toast.success('Stock database configured successfully!');
   };
 
   const formatFileSize = (bytes) => {
@@ -148,13 +172,63 @@ export default function Settings({ onBack, onReconfigure }) {
           </button>
           
           <button
+            onClick={handleOpenStockDbConfig}
+            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm border border-green-700 transition-colors shadow-sm"
+            title="Stock Database Configuration"
+          >
+            <CubeIcon className="h-4 w-4 mr-1.5" />
+            Stock DB Config
+          </button>
+          
+          <button
             onClick={handleOpenDbConfig}
             className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center text-sm border border-gray-300 transition-colors"
-            title="Database Configuration"
+            title="Main Database Configuration"
           >
             <ServerIcon className="h-4 w-4 mr-1.5" />
-            DB Config
+            Main DB Config
           </button>
+        </div>
+      </div>
+
+      {/* Database Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Main Database Status */}
+        <div className={`p-4 rounded-lg border ${
+          dbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <div className="flex items-center">
+            <ServerIcon className={`h-6 w-6 mr-3 ${
+              dbConfig ? 'text-green-600' : 'text-yellow-600'
+            }`} />
+            <div>
+              <h3 className="font-semibold text-gray-900">Main Database</h3>
+              <p className={`text-sm ${
+                dbConfig ? 'text-green-700' : 'text-yellow-700'
+              }`}>
+                {dbConfig ? `Connected to ${dbConfig.database}` : 'Not configured'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stock Database Status */}
+        <div className={`p-4 rounded-lg border ${
+          stockDbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <div className="flex items-center">
+            <CubeIcon className={`h-6 w-6 mr-3 ${
+              stockDbConfig ? 'text-green-600' : 'text-yellow-600'
+            }`} />
+            <div>
+              <h3 className="font-semibold text-gray-900">Stock Database</h3>
+              <p className={`text-sm ${
+                stockDbConfig ? 'text-green-700' : 'text-yellow-700'
+              }`}>
+                {stockDbConfig ? `Connected to ${stockDbConfig.database}` : 'Not configured'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -252,6 +326,13 @@ export default function Settings({ onBack, onReconfigure }) {
         isOpen={showDbConfig}
         onClose={() => setShowDbConfig(false)}
         onReconfigure={onReconfigure}
+      />
+
+      {/* Stock Database Configuration Modal */}
+      <StockDatabaseConfig
+        isOpen={showStockDbConfig}
+        onClose={() => setShowStockDbConfig(false)}
+        onSuccess={handleStockConfigSuccess}
       />
 
       {/* Barcode Configuration Modal */}

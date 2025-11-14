@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { 
   ClipboardDocumentIcon, 
   ClipboardDocumentCheckIcon,
-  PrinterIcon
+  PrinterIcon,
+  CubeIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import PrintDialog from './PrintDialog';
@@ -62,6 +63,29 @@ export default function SearchResults({ results }) {
     setShowPrintDialog(true);
   };
 
+  // Stock quantity display helper
+  const renderStockQuantity = (stockQty) => {
+    if (stockQty === null || stockQty === undefined) {
+      return (
+        <span className="text-gray-400 text-sm flex items-center" title="Stock information not available">
+          <CubeIcon className="h-4 w-4 mr-1" />
+          N/A
+        </span>
+      );
+    }
+    
+    const stockClass = stockQty > 0 
+      ? 'text-green-600 font-semibold' 
+      : 'text-red-600 font-semibold';
+    
+    return (
+      <span className={`text-sm flex items-center ${stockClass}`} title={`Stock quantity: ${stockQty}`}>
+        <CubeIcon className="h-4 w-4 mr-1" />
+        {stockQty}
+      </span>
+    );
+  };
+
   if (!results.length) return null;
 
   const allSelected = results.length > 0 && selectedItems.length === results.length;
@@ -106,6 +130,7 @@ export default function SearchResults({ results }) {
               <th className="p-3 border-b">Part Number</th>
               <th className="p-3 border-b">Brand</th>
               <th className="p-3 border-b">Description</th>
+              <th className="p-3 border-b">Stock</th>
               <th className="p-3 border-b">Price</th>
               <th className="p-3 border-b w-12"></th>
             </tr>
@@ -146,13 +171,17 @@ export default function SearchResults({ results }) {
                 </td>
                 <td className="p-3 border-b font-medium text-blue-600">{row.brand}</td>
                 <td className="p-3 border-b text-gray-700">{row.description}</td>
+                <td className="p-3 border-b">
+                  {renderStockQuantity(row.stockQty)}
+                </td>
                 <td className="p-3 border-b text-lg font-bold text-gray-900">${row.price}</td>
                 <td className="p-3 border-b">
                   <button
                     onClick={() => handlePrintSingle(row)}
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title="Print label"
                   >
                     <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700"/>
-                    {/* <PrinterIcon className="h-4 w-4" /> */}
                   </button>
                 </td>
               </tr>

@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveConfig: (config) => ipcRenderer.invoke('config:save', config),
   onConfigStatus: (callback) => ipcRenderer.on('config:status', callback),
   
+  // Stock database configuration
+  testStockConnection: (config) => ipcRenderer.invoke('stock:test', config),
+  saveStockConfig: (config) => ipcRenderer.invoke('stock:save', config),
+  checkStockConfig: () => ipcRenderer.invoke('stock:checkConfig'),
+  
   // File operations
   openFile: () => ipcRenderer.invoke('dialog:openFile'),
   importFile: (filePath) => ipcRenderer.invoke('db:importFile', filePath),

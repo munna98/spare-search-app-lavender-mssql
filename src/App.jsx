@@ -133,30 +133,32 @@ export default function App() {
 
   // Main application
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <ToastContainer position="top-right" autoClose={3000} />
-      
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
-        <button 
-          onClick={() => setShowSettings(true)}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:shadow-sm flex items-center"
-        >
-          <CogIcon className="h-5 w-5 mr-2 text-gray-500" />
-          Settings
-        </button>
-      </div>
-      
-      <PartSearchForm onSearch={handleSearch} />
-      <RecentSearches items={recent} onSelect={handleSearch} />
-      
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-6 max-w-4xl mx-auto"> {/* Changed to max-w-4xl to match Settings */}
+        <ToastContainer position="top-right" autoClose={3000} />
+        
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:shadow-sm flex items-center"
+          >
+            <CogIcon className="h-5 w-5 mr-2 text-gray-500" />
+            Settings
+          </button>
         </div>
-      ) : (
-        <SearchResults results={results} query={query} />
-      )}
+        
+        <PartSearchForm onSearch={handleSearch} />
+        <RecentSearches items={recent} onSelect={handleSearch} />
+        
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+          </div>
+        ) : (
+          <SearchResults results={results} query={query} />
+        )}
+      </div>
     </div>
   );
 }
