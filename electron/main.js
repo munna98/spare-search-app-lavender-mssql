@@ -7,6 +7,7 @@ import sql from 'mssql';
 import xlsx from 'xlsx';
 import fs from 'fs';
 import os from 'os';
+import updaterManager from './autoUpdater.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -640,6 +641,9 @@ function createWindow() {
     },
   });
 
+  // Set the main window for auto updater
+  updaterManager.setMainWindow(mainWindow);
+
   const startURL = isDev
     ? 'http://localhost:5173'
     : `file://${path.join(__dirname, '../dist/index.html')}`;
@@ -650,6 +654,71 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 }
+
+// Update the app.whenReady() to check for updates
+app.whenReady().then(async () => {
+  const savedConfig = loadConfig();
+  const savedStockConfig = loadStockConfig();
+  
+  createWindow();
+
+  if (savedConfig) {
+    try {
+      await initializeDatabase(savedConfig);
+      
+      if (savedStockConfig) {
+        try {
+          await initializeStockDatabase(savedStockConfig);
+          console.log('Stock database connected');
+        } catch (error) {
+          console.error('Failed to connect to stock database:', error);
+        }
+      }
+      
+      mainWindow.webContents.send('config:status', { 
+        configured: true, 
+        connected: true,
+        stockConfigured: !!savedStockConfig
+      });
+    } catch (error) {
+      console.error('Failed to connect with saved config:', error);
+      mainWindow.webContents.send('config:status', { 
+        configured: true, 
+        connected: false, 
+        error: error.message 
+      });
+    }
+  } else {
+    mainWindow.webContents.send('config:status', { configured: false, connected: false });
+  }
+
+  // Check for updates on startup
+  updaterManager.checkForUpdatesOnStartup();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+// Add IPC handlers for manual update checks
+ipcMain.handle('updater:check', async () => {
+  updaterManager.checkForUpdates();
+  return { success: true, message: 'Checking for updates...' };
+});
+
+ipcMain.handle('updater:download', async () => {
+  updaterManager.downloadUpdate();
+  return { success: true, message: 'Downloading update...' };
+});
+
+ipcMain.handle('updater:install', async () => {
+  updaterManager.installUpdate();
+  return { success: true, message: 'Installing update...' };
+});
+
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
+});
 
 // App lifecycle
 app.whenReady().then(async () => {

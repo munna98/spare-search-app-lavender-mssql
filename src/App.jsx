@@ -5,6 +5,7 @@ import RecentSearches from "./components/RecentSearches";
 import SearchResults from "./components/SearchResults";
 import Settings from "./components/Settings";
 import DatabaseSetupWizard from "./components/DatabaseSetupWizard";
+import UpdateNotification from "./components/UpdateNotification";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -20,10 +21,8 @@ export default function App() {
   const [showReconfigureWizard, setShowReconfigureWizard] = useState(false);
 
   useEffect(() => {
-    // Check if database is configured on mount
     checkDatabaseConfig();
 
-    // Listen for config status updates from main process
     const handleConfigStatus = (event, status) => {
       setDbConfigured(status.configured);
       setDbConnected(status.connected);
@@ -39,7 +38,6 @@ export default function App() {
     try {
       const result = await window.electronAPI.checkConfig();
       setDbConfigured(result.configured);
-      // If configured, assume connected (will be verified by main process)
       setDbConnected(result.configured);
     } catch (error) {
       console.error('Error checking config:', error);
@@ -67,12 +65,10 @@ export default function App() {
     setLoading(true);
     
     try {
-      // Add to recent searches if not already there
       if (!recent.includes(partNumber)) {
         setRecent([partNumber, ...recent.slice(0, 4)]);
       }
 
-      // Use the electronAPI to search parts in the database
       const response = await window.electronAPI.searchParts({ 
         term: partNumber,
         mode: searchMode
@@ -92,7 +88,6 @@ export default function App() {
     }
   };
 
-  // Show loading while checking configuration
   if (checkingConfig) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -104,7 +99,6 @@ export default function App() {
     );
   }
 
-  // Show setup wizard if database is not configured OR if reconfiguring
   if (!dbConfigured || showReconfigureWizard) {
     return (
       <>
@@ -118,11 +112,11 @@ export default function App() {
     );
   }
 
-  // Show settings page
   if (showSettings) {
     return (
       <>
         <ToastContainer position="top-right" autoClose={3000} />
+        <UpdateNotification />
         <Settings 
           onBack={() => setShowSettings(false)} 
           onReconfigure={handleReconfigure} 
@@ -131,10 +125,12 @@ export default function App() {
     );
   }
 
-  // Main application
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="p-6 max-w-4xl mx-auto"> {/* Changed to max-w-4xl to match Settings */}
+      {/* Update Notification - Shows in all screens */}
+      <UpdateNotification />
+      
+      <div className="p-6 max-w-4xl mx-auto">
         <ToastContainer position="top-right" autoClose={3000} />
         
         <div className="flex justify-between items-center mb-6">

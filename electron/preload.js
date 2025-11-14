@@ -1,7 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Database configuration
   checkConfig: () => ipcRenderer.invoke('config:check'),
@@ -25,5 +23,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Network operations
   getLocalIPAddresses: () => ipcRenderer.invoke('network:getLocalIPs'),
-  getHostname: () => ipcRenderer.invoke('network:getHostname')
+  getHostname: () => ipcRenderer.invoke('network:getHostname'),
+  
+  // Auto Updater
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('update-status', (event, data) => callback(data));
+  },
+  removeUpdateListener: () => {
+    ipcRenderer.removeAllListeners('update-status');
+  },
+   getAppVersion: () => ipcRenderer.invoke("get-app-version")
 });
+

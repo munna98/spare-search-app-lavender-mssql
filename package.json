@@ -1,7 +1,7 @@
 {
   "name": "spare-search-app-lavender",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.0.1",
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
@@ -9,13 +9,19 @@
     "build": "vite build",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
     "electron:build": "vite build && electron-builder",
+    "electron:build:win": "vite build && electron-builder --win",
+    "electron:build:mac": "vite build && electron-builder --mac",
+    "electron:build:linux": "vite build && electron-builder --linux",
     "lint": "eslint .",
     "postinstall": "electron-rebuild",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "publish": "vite build && electron-builder --publish always"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",
     "electron-is-dev": "^3.0.1",
+    "electron-log": "^5.0.1",
+    "electron-updater": "^6.1.7",
     "jsbarcode": "^3.12.1",
     "mssql": "^12.0.0",
     "react": "^18.2.0",
@@ -40,13 +46,6 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ],
-      "icon": "assets/icon.ico"
-    },
     "appId": "com.lavender.sparesearch",
     "productName": "Spare Parts Search",
     "files": [
@@ -56,6 +55,37 @@
     "directories": {
       "buildResources": "assets",
       "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "Lavender Software",
+      "verifyUpdateCodeSignature": false
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.business",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office",
+      "icon": "assets/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "munna98",
+      "repo": "spare-search-app-lavender-mssql",
+      "releaseType": "release"
     }
   }
 }
