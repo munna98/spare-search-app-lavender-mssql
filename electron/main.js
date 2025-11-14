@@ -727,36 +727,66 @@ app.whenReady().then(async () => {
   
   createWindow();
 
-  if (savedConfig) {
-    try {
-      await initializeDatabase(savedConfig);
-      
-      // Try to initialize stock database if configured
-      if (savedStockConfig) {
-        try {
-          await initializeStockDatabase(savedStockConfig);
-          console.log('Stock database connected');
-        } catch (error) {
-          console.error('Failed to connect to stock database:', error);
+  // Wait for window to be ready before connecting to database
+  mainWindow.webContents.once('did-finish-load', async () => {
+    if (savedConfig) {
+      try {
+        console.log('Initializing database connection on app startup...');
+        await initializeDatabase(savedConfig);
+        console.log('Main database connected successfully');
+        
+        // Try to initialize stock database if configured
+        if (savedStockConfig) {
+          try {
+            await initializeStockDatabase(savedStockConfig);
+            console.log('Stock database connected');
+          } catch (error) {
+            console.error('Failed to connect to stock database:', error);
+          }
         }
+        
+        mainWindow.webContents.send('config:status', { 
+          configured: true, 
+          connected: true,
+          stockConfigured: !!savedStockConfig
+        });
+      } catch (error) {
+        console.error('Failed to connect with saved config:', error);
+        
+        // Retry connection after 2 seconds
+        setTimeout(async () => {
+          try {
+            console.log('Retrying database connection...');
+            await initializeDatabase(savedConfig);
+            console.log('Database reconnected successfully');
+            
+            if (savedStockConfig) {
+              try {
+                await initializeStockDatabase(savedStockConfig);
+              } catch (stockError) {
+                console.error('Stock database retry failed:', stockError);
+              }
+            }
+            
+            mainWindow.webContents.send('config:status', { 
+              configured: true, 
+              connected: true,
+              stockConfigured: !!savedStockConfig
+            });
+          } catch (retryError) {
+            console.error('Retry failed:', retryError);
+            mainWindow.webContents.send('config:status', { 
+              configured: true, 
+              connected: false, 
+              error: retryError.message 
+            });
+          }
+        }, 2000);
       }
-      
-      mainWindow.webContents.send('config:status', { 
-        configured: true, 
-        connected: true,
-        stockConfigured: !!savedStockConfig
-      });
-    } catch (error) {
-      console.error('Failed to connect with saved config:', error);
-      mainWindow.webContents.send('config:status', { 
-        configured: true, 
-        connected: false, 
-        error: error.message 
-      });
+    } else {
+      mainWindow.webContents.send('config:status', { configured: false, connected: false });
     }
-  } else {
-    mainWindow.webContents.send('config:status', { configured: false, connected: false });
-  }
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

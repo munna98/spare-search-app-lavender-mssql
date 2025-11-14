@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { CogIcon } from "@heroicons/react/24/outline";
+import { CogIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
 import PartSearchForm from "./components/PartSearchForm";
 import RecentSearches from "./components/RecentSearches";
 import SearchResults from "./components/SearchResults";
 import Settings from "./components/Settings";
 import DatabaseSetupWizard from "./components/DatabaseSetupWizard";
 import UpdateNotification from "./components/UpdateNotification";
+import FileManager from "./components/FileManager";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -15,6 +16,7 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFileManager, setShowFileManager] = useState(false);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [checkingConfig, setCheckingConfig] = useState(true);
@@ -28,6 +30,8 @@ export default function App() {
       setDbConnected(status.connected);
       if (status.configured && !status.connected && status.error) {
         toast.error(`Database connection failed: ${status.error}`);
+      } else if (status.configured && status.connected) {
+        toast.success('Database connected successfully!');
       }
     };
 
@@ -65,7 +69,7 @@ export default function App() {
     setLoading(true);
     
     try {
-      if (!recent.includes(partNumber)) {
+      if (!recent.includes(partNumber) && partNumber.trim()) {
         setRecent([partNumber, ...recent.slice(0, 4)]);
       }
 
@@ -125,6 +129,16 @@ export default function App() {
     );
   }
 
+  if (showFileManager) {
+    return (
+      <>
+        <ToastContainer position="top-right" autoClose={3000} />
+        <UpdateNotification />
+        <FileManager onBack={() => setShowFileManager(false)} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Update Notification - Shows in all screens */}
@@ -134,18 +148,48 @@ export default function App() {
         <ToastContainer position="top-right" autoClose={3000} />
         
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
-          <button 
-            onClick={() => setShowSettings(true)}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:shadow-sm flex items-center"
-          >
-            <CogIcon className="h-5 w-5 mr-2 text-gray-500" />
-            Settings
-          </button>
-        </div>
+  <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
+
+  <div className="flex gap-3">
+    {/* Explore Files */}
+    <button 
+      onClick={() => setShowFileManager(true)}
+      className="
+        px-4 py-2 bg-white border border-gray-300 
+        rounded-md text-sm flex items-center gap-2
+        hover:shadow-md hover:bg-gray-100 
+        transition-all duration-200
+        active:scale-[0.98]
+      "
+      title="Manage uploaded files"
+    >
+      <FolderOpenIcon className="h-5 w-5 text-gray-600" />
+      <span className="text-gray-700">Explore Files</span>
+    </button>
+
+    {/* Settings */}
+    <button 
+      onClick={() => setShowSettings(true)}
+      className="
+        px-4 py-2 bg-white border border-gray-300 
+        rounded-md text-sm flex items-center gap-2
+        hover:shadow-md hover:bg-gray-100 
+        transition-all duration-200
+        active:scale-[0.98]
+      "
+    >
+      <CogIcon className="h-5 w-5 text-gray-600" />
+      <span className="text-gray-700">Settings</span>
+    </button>
+  </div>
+</div>
+
         
-        <PartSearchForm onSearch={handleSearch} />
-        <RecentSearches items={recent} onSelect={handleSearch} />
+        <PartSearchForm onSearch={handleSearch} currentQuery={query} />
+        <RecentSearches items={recent} onSelect={(term) => {
+          setQuery(term);
+          handleSearch(term);
+        }} />
         
         {loading ? (
           <div className="flex justify-center py-8">

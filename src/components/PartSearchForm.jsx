@@ -1,9 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
-export default function PartSearchForm({ onSearch }) {
+export default function PartSearchForm({ onSearch, currentQuery = "" }) {
   const [input, setInput] = useState("");
   const [searchMode, setSearchMode] = useState("contains");
+
+  // Update input when currentQuery changes (from recent searches)
+  useEffect(() => {
+    if (currentQuery) {
+      setInput(currentQuery);
+    }
+  }, [currentQuery]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
