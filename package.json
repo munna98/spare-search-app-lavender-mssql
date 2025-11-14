@@ -1,7 +1,7 @@
 {
   "name": "spare-search-app-lavender",
   "private": true,
-  "version": "3.1.0",
+  "version": "3.1.1",
   "main": "electron/main.js",
   "type": "module",
   "scripts": {
@@ -70,6 +70,21 @@
       "icon": "assets/icon.ico",
       "publisherName": "Lavender Software",
       "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Spare Parts Search",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeader": "assets/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "allowElevation": true,
+      "perMachine": false,
+      "warningsAsErrors": false,
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": ["dmg", "zip"],

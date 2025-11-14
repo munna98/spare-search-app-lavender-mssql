@@ -138,7 +138,10 @@ class AutoUpdaterManager {
     }).then(result => {
       if (result.response === 0) {
         // User clicked Restart Now
-        autoUpdater.quitAndInstall(false, true);
+        // Force quit and install - this will close the app properly
+        setImmediate(() => {
+          autoUpdater.quitAndInstall(false, true);
+        });
       }
     });
   }
