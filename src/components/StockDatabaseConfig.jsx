@@ -176,7 +176,7 @@ export default function StockDatabaseConfig({ isOpen, onClose, onSuccess }) {
         {/* Form Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
-            {/* Info Box */}
+             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex">
                 <svg className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -187,7 +187,8 @@ export default function StockDatabaseConfig({ isOpen, onClose, onSuccess }) {
                   <p className="text-xs text-blue-800 mt-1">
                     This database should contain <code className="bg-blue-100 px-1 rounded">inv_Product</code> and 
                     <code className="bg-blue-100 px-1 rounded"> inv_Stock</code> tables. Stock quantities are calculated as 
-                    <code className="bg-blue-100 px-1 rounded"> SUM(StockIn) - SUM(StockOut)</code>.
+                    <code className="bg-blue-100 px-1 rounded"> SUM(StockIn) - SUM(StockOut)</code>. The system will match 
+                    part numbers using the <code className="bg-blue-100 px-1 rounded">ProductCode</code> field.
                   </p>
                 </div>
               </div>
@@ -203,18 +204,21 @@ export default function StockDatabaseConfig({ isOpen, onClose, onSuccess }) {
                     <div className="flex items-center">
                       <span className="font-mono bg-green-100 px-1 rounded">inv_Product</span>
                       <span className="mx-2">→</span>
-                      <span>ProductID, PartNumber columns</span>
+                      <span>ProductID, ProductCode columns</span>
                     </div>
                     <div className="flex items-center">
                       <span className="font-mono bg-green-100 px-1 rounded">inv_Stock</span>
                       <span className="mx-2">→</span>
                       <span>ProductID, StockIn, StockOut columns</span>
                     </div>
+                    <div className="mt-2 text-xs text-green-700 italic">
+                      Note: ProductCode should contain the part number
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
+            
             {/* Server Address */}
             <div>
               <div className="flex items-center justify-between mb-2">

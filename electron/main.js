@@ -194,7 +194,7 @@ async function diagnoseStockConnection(config) {
     const currentDb = await testPool.request().query(`SELECT DB_NAME() AS CurrentDatabase`);
     console.log('Actually connected to database:', currentDb.recordset[0].CurrentDatabase);
     
-    // Check table existence
+    // Check table existence - using ProductCode instead of PartNumber
     const tablesCheck = await testPool.request().query(`
       SELECT 
         TABLE_SCHEMA,
@@ -207,6 +207,15 @@ async function diagnoseStockConnection(config) {
     
     console.log('Tables found in stock database:', tablesCheck.recordset);
     
+    // Check if ProductCode column exists in inv_Product
+    const columnCheck = await testPool.request().query(`
+      SELECT 
+        COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'inv_Product' 
+      AND COLUMN_NAME = 'ProductCode'
+    `);
+    
     await testPool.close();
     
     if (tablesCheck.recordset.length === 0) {
@@ -218,14 +227,28 @@ async function diagnoseStockConnection(config) {
     
     const foundProductTable = tablesCheck.recordset.some(t => t.TABLE_NAME === 'inv_Product');
     const foundStockTable = tablesCheck.recordset.some(t => t.TABLE_NAME === 'inv_Stock');
+    const hasProductCode = columnCheck.recordset.length > 0;
+    
+    if (foundProductTable && !hasProductCode) {
+      return {
+        success: false,
+        message: `inv_Product table found but 'ProductCode' column is missing. Please ensure the table has a ProductCode column.`,
+        details: {
+          database: currentDb.recordset[0],
+          tables: tablesCheck.recordset,
+          hasRequiredTables: false
+        }
+      };
+    }
     
     return {
-      success: foundProductTable && foundStockTable,
-      message: `Diagnostic complete. Database: ${currentDb.recordset[0].CurrentDatabase}. Found tables: ${tablesCheck.recordset.map(t => t.TABLE_NAME).join(', ')}`,
+      success: foundProductTable && foundStockTable && hasProductCode,
+      message: `Diagnostic complete. Database: ${currentDb.recordset[0].CurrentDatabase}. Found tables: ${tablesCheck.recordset.map(t => t.TABLE_NAME).join(', ')}. ProductCode column: ${hasProductCode ? 'Found' : 'Missing'}`,
       details: {
         database: currentDb.recordset[0],
         tables: tablesCheck.recordset,
-        hasRequiredTables: foundProductTable && foundStockTable
+        hasRequiredTables: foundProductTable && foundStockTable,
+        hasProductCode
       }
     };
     
@@ -237,7 +260,6 @@ async function diagnoseStockConnection(config) {
     };
   }
 }
-
 // Test stock database connection
 async function testStockConnection(config) {
   // First run diagnostic
@@ -370,17 +392,17 @@ async function getStockForPartNumber(partNumber) {
     const result = await request.query(`
       SELECT 
         p.ProductID,
-        p.PartNumber,
+        p.ProductCode,
         ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
         dbo.inv_Stock s ON p.ProductID = s.ProductID
       WHERE 
-        p.PartNumber = @partNumber
+        p.ProductCode = @partNumber
       GROUP BY 
         p.ProductID,
-        p.PartNumber
+        p.ProductCode
     `);
     
     if (result.recordset.length > 0) {
@@ -407,17 +429,17 @@ async function getStockForPartNumber(partNumber) {
           const result = await request.query(`
             SELECT 
               p.ProductID,
-              p.PartNumber,
+              p.ProductCode,
               ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
             FROM 
               dbo.inv_Product p
             LEFT JOIN 
               dbo.inv_Stock s ON p.ProductID = s.ProductID
             WHERE 
-              p.PartNumber = @partNumber
+              p.ProductCode = @partNumber
             GROUP BY 
               p.ProductID,
-              p.PartNumber
+              p.ProductCode
           `);
           
           if (result.recordset.length > 0) {
@@ -453,23 +475,23 @@ async function getStockForPartNumbers(partNumbers) {
     const result = await request.query(`
       SELECT 
         p.ProductID,
-        p.PartNumber,
+        p.ProductCode,
         ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
         dbo.inv_Stock s ON p.ProductID = s.ProductID
       WHERE 
-        p.PartNumber IN (${partNumbersList})
+        p.ProductCode IN (${partNumbersList})
       GROUP BY 
         p.ProductID,
-        p.PartNumber
+        p.ProductCode
     `);
     
     // Create a map of partNumber -> stockQty
     const stockMap = {};
     result.recordset.forEach(row => {
-      stockMap[row.PartNumber] = {
+      stockMap[row.ProductCode] = {
         stockQty: row.StockQty,
         productId: row.ProductID
       };
@@ -481,6 +503,7 @@ async function getStockForPartNumbers(partNumbers) {
     return {};
   }
 }
+
 
 // Check if database connection is alive
 async function checkConnectionStatus() {

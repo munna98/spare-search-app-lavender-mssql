@@ -151,7 +151,7 @@ export default function App() {
   <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
 
   <div className="flex gap-3">
-    {/* Explore Files */}
+    {/* Manage Files */}
     <button 
       onClick={() => setShowFileManager(true)}
       className="
@@ -164,7 +164,7 @@ export default function App() {
       title="Manage uploaded files"
     >
       <FolderOpenIcon className="h-5 w-5 text-gray-600" />
-      <span className="text-gray-700">Explore Files</span>
+      <span className="text-gray-700">Manage Files</span>
     </button>
 
     {/* Settings */}
