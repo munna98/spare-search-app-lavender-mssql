@@ -88,13 +88,16 @@ function buildSqlConfig(userConfig, existingConfig = null, useMaster = false, ta
       encrypt: userConfig.encrypt || false,
       trustServerCertificate: true,
       enableArithAbort: true,
+      connectTimeout: 30000,
+      requestTimeout: 30000,
     },
     pool: {
       max: 10,
-      min: 0,
+      min: 2,
       idleTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
     },
-    requestTimeout: 300000,
+    connectionTimeout: 30000,
   };
 }
 
@@ -346,11 +349,22 @@ async function initializeStockDatabase(config) {
 // Get stock information for a single part number
 async function getStockForPartNumber(partNumber) {
   if (!stockPool || !stockPool.connected) {
-    return { stockQty: null, error: 'Stock database not connected' };
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        return { stockQty: null, error: 'Stock database not connected' };
+      }
+    } else {
+      return { stockQty: null, error: 'Stock database not configured' };
+    }
   }
   
   try {
     const request = stockPool.request();
+    request.timeout = 10000;
     request.input('partNumber', sql.NVarChar, partNumber);
     
     const result = await request.query(`
@@ -379,6 +393,45 @@ async function getStockForPartNumber(partNumber) {
     return { stockQty: null }; // Product not found in stock database
   } catch (error) {
     console.error('Error fetching stock:', error);
+    
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+          // Retry the query once
+          const request = stockPool.request();
+          request.timeout = 10000;
+          request.input('partNumber', sql.NVarChar, partNumber);
+          const result = await request.query(`
+            SELECT 
+              p.ProductID,
+              p.PartNumber,
+              ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+            FROM 
+              dbo.inv_Product p
+            LEFT JOIN 
+              dbo.inv_Stock s ON p.ProductID = s.ProductID
+            WHERE 
+              p.PartNumber = @partNumber
+            GROUP BY 
+              p.ProductID,
+              p.PartNumber
+          `);
+          
+          if (result.recordset.length > 0) {
+            return { 
+              stockQty: result.recordset[0].StockQty,
+              productId: result.recordset[0].ProductID 
+            };
+          }
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+    
     return { stockQty: null, error: error.message };
   }
 }
@@ -392,6 +445,7 @@ async function getStockForPartNumbers(partNumbers) {
   try {
     // Create a temporary table with part numbers
     const request = stockPool.request();
+    request.timeout = 15000;
     
     // Build IN clause
     const partNumbersList = partNumbers.map(pn => `'${pn.replace(/'/g, "''")}'`).join(',');
@@ -449,6 +503,27 @@ async function checkConnectionStatus() {
   }
 }
 
+// Check stock database connection
+async function checkStockConnectionStatus() {
+  if (!stockPool) {
+    return { connected: false, error: 'No stock connection pool exists' };
+  }
+  
+  try {
+    if (!stockPool.connected) {
+      return { connected: false, error: 'Stock pool not connected' };
+    }
+    
+    const request = stockPool.request();
+    request.timeout = 5000;
+    await request.query('SELECT 1 as test');
+    return { connected: true };
+  } catch (error) {
+    console.error('Stock connection status check error:', error);
+    return { connected: false, error: error.message };
+  }
+}
+
 // Start connection health monitoring
 function startConnectionHealthCheck() {
   if (connectionHealthInterval) {
@@ -456,46 +531,51 @@ function startConnectionHealthCheck() {
   }
   
   connectionHealthInterval = setInterval(async () => {
-    if (!currentConfig) return;
-    
-    const status = await checkConnectionStatus();
-    
-    if (!status.connected && pool) {
-      console.log('Connection lost, attempting to reconnect...');
-      try {
-        await pool.close();
-        pool = null;
-        await initializeDatabase(currentConfig);
-        console.log('Reconnection successful');
-        
-        if (mainWindow) {
-          mainWindow.webContents.send('config:status', { configured: true, connected: true });
-        }
-      } catch (error) {
-        console.error('Reconnection failed:', error);
-        if (mainWindow) {
-          mainWindow.webContents.send('config:status', { 
-            configured: true, 
-            connected: false, 
-            error: error.message 
-          });
+    // Check main database
+    if (currentConfig) {
+      const status = await checkConnectionStatus();
+      
+      if (!status.connected && pool) {
+        console.log('Main database connection lost, attempting to reconnect...');
+        try {
+          await pool.close();
+          pool = null;
+          await initializeDatabase(currentConfig);
+          console.log('Main database reconnection successful');
+          
+          if (mainWindow) {
+            mainWindow.webContents.send('config:status', { configured: true, connected: true });
+          }
+        } catch (error) {
+          console.error('Main database reconnection failed:', error);
+          if (mainWindow) {
+            mainWindow.webContents.send('config:status', { 
+              configured: true, 
+              connected: false, 
+              error: error.message 
+            });
+          }
         }
       }
     }
     
-    // Also check stock database if configured
-    if (stockConfig && stockPool) {
-      try {
-        if (!stockPool.connected) {
-          console.log('Stock database connection lost, attempting to reconnect...');
+    // Check stock database
+    if (stockConfig) {
+      const stockStatus = await checkStockConnectionStatus();
+      
+      if (!stockStatus.connected && stockPool) {
+        console.log('Stock database connection lost, attempting to reconnect...');
+        try {
+          await stockPool.close();
+          stockPool = null;
           await initializeStockDatabase(stockConfig);
           console.log('Stock database reconnection successful');
+        } catch (error) {
+          console.error('Stock database reconnection failed:', error);
         }
-      } catch (error) {
-        console.error('Stock database reconnection failed:', error);
       }
     }
-  }, 30000);
+  }, 30000); // Check every 30 seconds
 }
 
 // Initialize database & tables
@@ -655,71 +735,6 @@ function createWindow() {
   }
 }
 
-// Update the app.whenReady() to check for updates
-app.whenReady().then(async () => {
-  const savedConfig = loadConfig();
-  const savedStockConfig = loadStockConfig();
-  
-  createWindow();
-
-  if (savedConfig) {
-    try {
-      await initializeDatabase(savedConfig);
-      
-      if (savedStockConfig) {
-        try {
-          await initializeStockDatabase(savedStockConfig);
-          console.log('Stock database connected');
-        } catch (error) {
-          console.error('Failed to connect to stock database:', error);
-        }
-      }
-      
-      mainWindow.webContents.send('config:status', { 
-        configured: true, 
-        connected: true,
-        stockConfigured: !!savedStockConfig
-      });
-    } catch (error) {
-      console.error('Failed to connect with saved config:', error);
-      mainWindow.webContents.send('config:status', { 
-        configured: true, 
-        connected: false, 
-        error: error.message 
-      });
-    }
-  } else {
-    mainWindow.webContents.send('config:status', { configured: false, connected: false });
-  }
-
-  // Check for updates on startup
-  updaterManager.checkForUpdatesOnStartup();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-// Add IPC handlers for manual update checks
-ipcMain.handle('updater:check', async () => {
-  updaterManager.checkForUpdates();
-  return { success: true, message: 'Checking for updates...' };
-});
-
-ipcMain.handle('updater:download', async () => {
-  updaterManager.downloadUpdate();
-  return { success: true, message: 'Downloading update...' };
-});
-
-ipcMain.handle('updater:install', async () => {
-  updaterManager.installUpdate();
-  return { success: true, message: 'Installing update...' };
-});
-
-ipcMain.handle("get-app-version", () => {
-  return app.getVersion();
-});
-
 // App lifecycle
 app.whenReady().then(async () => {
   const savedConfig = loadConfig();
@@ -727,7 +742,7 @@ app.whenReady().then(async () => {
   
   createWindow();
 
-  // Wait for window to be ready before connecting to database
+  // Set up update listener after window is created
   mainWindow.webContents.once('did-finish-load', async () => {
     if (savedConfig) {
       try {
@@ -788,6 +803,9 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Check for updates on startup
+  updaterManager.checkForUpdatesOnStartup();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -803,6 +821,26 @@ app.on('window-all-closed', async () => {
     if (stockPool) await stockPool.close();
     app.quit();
   }
+});
+
+// IPC handlers for updates
+ipcMain.handle('updater:check', async () => {
+  updaterManager.checkForUpdates();
+  return { success: true, message: 'Checking for updates...' };
+});
+
+ipcMain.handle('updater:download', async () => {
+  updaterManager.downloadUpdate();
+  return { success: true, message: 'Downloading update...' };
+});
+
+ipcMain.handle('updater:install', async () => {
+  updaterManager.installUpdate();
+  return { success: true, message: 'Installing update...' };
+});
+
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
 });
 
 // IPC handlers
