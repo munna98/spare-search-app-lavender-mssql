@@ -11,30 +11,37 @@ export async function searchParts(searchParams) {
     throw new Error('Database not connected');
   }
 
-  const { term, mode = 'contains' } = searchParams;
+  // Remove all spaces from the search term
+  let { term, mode = 'contains' } = searchParams;
+  const originalTerm = term;
+  term = term.replace(/\s+/g, '');
+
+  console.log(`Search: "${originalTerm}" -> trimmed to: "${term}" (mode: ${mode})`);
 
   let partCondition;
   let paramValue;
 
   switch (mode) {
     case 'startsWith':
-      partCondition = 'part_number LIKE @term';
+      partCondition = "REPLACE(part_number, ' ', '') LIKE @term";
       paramValue = `${term}%`;
       break;
     case 'endsWith':
-      partCondition = 'part_number LIKE @term';
+      partCondition = "REPLACE(part_number, ' ', '') LIKE @term";
       paramValue = `%${term}`;
       break;
     case 'exact':
-      partCondition = 'part_number = @term';
+      partCondition = "REPLACE(part_number, ' ', '') = @term";
       paramValue = term;
       break;
     case 'contains':
     default:
-      partCondition = 'part_number LIKE @term';
+      partCondition = "REPLACE(part_number, ' ', '') LIKE @term";
       paramValue = `%${term}%`;
       break;
   }
+
+  console.log(`SQL condition: ${partCondition}, paramValue: "${paramValue}"`);
 
   const request = pool.request();
   request.input('term', sql.NVarChar, paramValue);

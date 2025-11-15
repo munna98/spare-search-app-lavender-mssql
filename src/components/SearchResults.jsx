@@ -4,12 +4,13 @@ import {
   ClipboardDocumentIcon, 
   ClipboardDocumentCheckIcon,
   PrinterIcon,
-  CubeIcon
+  CubeIcon,
+  MagnifyingGlassCircleIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import PrintDialog from './PrintDialog';
 
-export default function SearchResults({ results }) {
+export default function SearchResults({ results, query }) {
   const [copiedId, setCopiedId] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
@@ -86,6 +87,22 @@ export default function SearchResults({ results }) {
     );
   };
 
+  // Show "No results found" message if query exists but no results
+  if (query && results.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="bg-gray-100 rounded-full p-6 mb-4">
+          <MagnifyingGlassCircleIcon className="h-16 w-16 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">No results found</h3>
+        <p className="text-gray-600 text-center max-w-md mb-4">
+          We couldn't find any parts matching "<span className="font-medium text-gray-900">{query}</span>"
+        </p>
+      </div>
+    );
+  }
+
+  // Don't show anything if no query has been entered yet
   if (!results.length) return null;
 
   const allSelected = results.length > 0 && selectedItems.length === results.length;
