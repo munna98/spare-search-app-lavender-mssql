@@ -28,10 +28,10 @@ export default function App() {
     const handleConfigStatus = (event, status) => {
       setDbConfigured(status.configured);
       setDbConnected(status.connected);
-      if (status.configured && !status.connected && status.error) {
-        toast.error(`Database connection failed: ${status.error}`);
-      } else if (status.configured && status.connected) {
-        toast.success('Database connected successfully!');
+      
+      // Only show error toast if there's an actual error after initial setup
+      if (status.configured && !status.connected && status.error && !checkingConfig) {
+        toast.error(`Database connection issue: ${status.error}`);
       }
     };
 
@@ -56,7 +56,6 @@ export default function App() {
     setDbConfigured(true);
     setDbConnected(true);
     setShowReconfigureWizard(false);
-    toast.success('Database configured successfully! You can now start searching.');
   };
 
   const handleReconfigure = () => {
@@ -79,14 +78,11 @@ export default function App() {
       });
 
       if (response.success) {
-        // Response now contains { cerobiz: [...], files: [...] }
         setResults(response.results);
         
         const totalResults = (response.results.cerobiz?.length || 0) + (response.results.files?.length || 0);
         if (totalResults === 0) {
-          toast.info('No results found for this search');
-        } else {
-          toast.success(`Found ${totalResults} result${totalResults !== 1 ? 's' : ''}`);
+          toast.info('No results found', { autoClose: 2000 });
         }
       } else {
         toast.error(`Search error: ${response.message}`);
@@ -149,7 +145,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-6 pt-0 bg-gray-50">
-      {/* Update Notification - Shows in all screens */}
       <UpdateNotification />
       
       <div className="p-6 max-w-6xl mx-auto">
@@ -159,32 +154,18 @@ export default function App() {
           <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
 
           <div className="flex gap-3">
-            {/* Manage Files */}
             <button 
               onClick={() => setShowFileManager(true)}
-              className="
-                px-4 py-2 bg-white border border-gray-300 
-                rounded-md text-sm flex items-center gap-2
-                hover:shadow-md hover:bg-gray-100 
-                transition-all duration-200
-                active:scale-[0.98]
-              "
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
               title="Manage uploaded files"
             >
               <FolderOpenIcon className="h-5 w-5 text-gray-600" />
               <span className="text-gray-700">Manage Files</span>
             </button>
 
-            {/* Settings */}
             <button 
               onClick={() => setShowSettings(true)}
-              className="
-                px-4 py-2 bg-white border border-gray-300 
-                rounded-md text-sm flex items-center gap-2
-                hover:shadow-md hover:bg-gray-100 
-                transition-all duration-200
-                active:scale-[0.98]
-              "
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
             >
               <CogIcon className="h-5 w-5 text-gray-600" />
               <span className="text-gray-700">Settings</span>

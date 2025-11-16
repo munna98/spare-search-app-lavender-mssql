@@ -3,6 +3,7 @@ import sql from 'mssql';
 
 let pool = null;
 let currentConfig = null;
+let isConnecting = false;
 
 // Build SQL config from user settings
 export function buildSqlConfig(userConfig, existingConfig = null, useMaster = false, targetDatabase = null) {
@@ -88,12 +89,40 @@ export async function testConnection(config) {
 
 // Initialize database & tables
 export async function initializeDatabase(config) {
+  if (isConnecting) {
+    let attempts = 0;
+    while (isConnecting && attempts < 30) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+    }
+    
+    if (pool && pool.connected) {
+      return { success: true };
+    }
+  }
+
+  isConnecting = true;
+
   try {
+    if (pool) {
+      try {
+        await pool.close();
+      } catch (error) {
+        // Silent cleanup
+      }
+      pool = null;
+    }
+
     await ensureDatabaseExists(config);
 
     const sqlConfig = buildSqlConfig(config);
-    pool = await sql.connect(sqlConfig);
-    console.log(`Connected to MSSQL Server - Database: ${config.database}`);
+    pool = new sql.ConnectionPool(sqlConfig);
+    
+    pool.on('error', err => {
+      console.error('Database pool error:', err.message);
+    });
+
+    await pool.connect();
 
     // Create tables
     await pool.request().query(`
@@ -127,12 +156,13 @@ export async function initializeDatabase(config) {
       CREATE INDEX IX_parts_part_number ON parts(part_number)
     `);
 
-    console.log('Database tables initialized');
     currentConfig = config;
+    isConnecting = false;
 
     return { success: true };
   } catch (error) {
-    console.error('Database initialization error:', error);
+    isConnecting = false;
+    console.error('Database initialization error:', error.message);
     throw error;
   }
 }
@@ -160,6 +190,16 @@ export async function checkConnectionStatus() {
 
 // Get pool instance
 export function getPool() {
+  if (!pool) {
+    console.error('Warning: getPool() called but pool is null');
+    return null;
+  }
+  
+  if (!pool.connected) {
+    console.error('Warning: getPool() called but pool is not connected');
+    return null;
+  }
+  
   return pool;
 }
 
@@ -171,8 +211,13 @@ export function getCurrentConfig() {
 // Close database connection
 export async function closeDatabase() {
   if (pool) {
-    await pool.close();
+    try {
+      await pool.close();
+    } catch (error) {
+      console.error('Error closing database pool:', error);
+    }
     pool = null;
     currentConfig = null;
+    isConnecting = false;
   }
 }

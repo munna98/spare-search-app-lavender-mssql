@@ -25,9 +25,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
   const [saving, setSaving] = useState(false);
   const [localIPs, setLocalIPs] = useState([]);
   const [loadingIPs, setLoadingIPs] = useState(false);
-  const [configLoaded, setConfigLoaded] = useState(false);
 
-  // Load existing config when in reconfigure mode and detect IPs
   useEffect(() => {
     const initialize = async () => {
       await detectLocalIPs();
@@ -38,20 +36,14 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
     initialize();
   }, [isReconfigure]);
 
-    const detectLocalIPs = async () => {
+  const detectLocalIPs = async () => {
     setLoadingIPs(true);
     try {
       const ips = await window.electronAPI.getLocalIPAddresses();
       const hostname = await window.electronAPI.getHostname();
-      setLocalIPs(ips);
-      
-      // Add hostname as first option
-      if (hostname) {
-        setLocalIPs([hostname, ...ips]);
-      }
+      setLocalIPs(hostname ? [hostname, ...ips] : ips);
     } catch (error) {
       console.error('Error detecting IP addresses:', error);
-      toast.error('Could not detect network IP addresses');
     } finally {
       setLoadingIPs(false);
     }
@@ -68,37 +60,30 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
           database: response.config.database || prev.database,
           username: response.config.username || prev.username,
           encrypt: response.config.encrypt || prev.encrypt,
-          password: '' // Don't load password for security
+          password: ''
         }));
-        setConfigLoaded(true);
       }
     } catch (error) {
       console.error('Error loading existing config:', error);
-      toast.error('Could not load existing configuration');
     }
   };
 
   const handleInputChange = (field, value) => {
     setConfig(prev => ({ ...prev, [field]: value }));
-    // Clear test result when config changes
     setTestResult(null);
   };
 
   const handleUseIP = (ip) => {
     setConfig(prev => ({ ...prev, server: ip }));
     setTestResult(null);
-    toast.info(`Using IP address: ${ip}`);
   };
 
   const handleTestConnection = async () => {
-    // Validate required fields
     if (!config.server || !config.database || !config.username) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    // For initial setup, password is required
-    // For reconfigure, password is optional (will keep existing if empty)
     if (!isReconfigure && !config.password) {
       toast.error('Password is required for initial setup');
       return;
@@ -112,7 +97,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
       setTestResult(result);
       
       if (result.success) {
-        toast.success('Connection test successful!');
+        toast.success('Connection successful!', { autoClose: 2000 });
       } else {
         toast.error(`Connection failed: ${result.message}`);
       }
@@ -136,10 +121,10 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
       const result = await window.electronAPI.saveConfig(config);
       
       if (result.success) {
-        toast.success(isReconfigure ? 'Database configuration updated successfully!' : 'Database configured successfully!');
+        toast.success(isReconfigure ? 'Configuration updated!' : 'Database configured!', { autoClose: 2000 });
         onComplete();
       } else {
-        toast.error(`Failed to save configuration: ${result.message}`);
+        toast.error(`Failed to save: ${result.message}`);
       }
     } catch (error) {
       toast.error(`Error: ${error.message}`);
@@ -160,7 +145,6 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
     if (!config.server || !config.database || !config.username) {
       return false;
     }
-    // For initial setup, password is required
     if (!isReconfigure && !config.password) {
       return false;
     }
@@ -189,15 +173,15 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
           <p className="text-center text-blue-100 text-sm">
             {isReconfigure 
               ? 'Update your SQL Server connection settings'
-              : 'Configure your SQL Server connection to get started'
+              : 'Configure your SQL Server connection'
             }
           </p>
         </div>
 
-        {/* Form Content - Scrollable */}
+        {/* Form Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
-            {/* Server Address with IP Detection */}
+            {/* Server Address */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-gray-700">
@@ -221,7 +205,6 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
                 disabled={testing || saving}
               />
 
-              {/* Detected IP Addresses */}
               {loadingIPs ? (
                 <div className="flex items-center text-xs text-gray-500">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
@@ -257,22 +240,13 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Choose an IP address for network connections or use 'localhost' for local SQL Server
-                  </p>
                 </div>
-              ) : (
-                <p className="text-xs text-gray-500">
-                  Use 'localhost' for local installation or IP address for network server
-                </p>
-              )}
+              ) : null}
             </div>
 
             {/* Port */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Port *
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Port *</label>
               <input
                 type="number"
                 value={config.port}
@@ -283,7 +257,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
               />
             </div>
 
-            {/* Database Name - Highlighted */}
+            {/* Database Name */}
             <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
               <label className="block text-sm font-bold text-blue-900 mb-2">
                 <ServerIcon className="h-4 w-4 inline mr-2" />
@@ -297,14 +271,9 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
                 placeholder="SPAREDB"
                 disabled={testing || saving}
               />
-              <div className="mt-2 flex items-start">
-                <svg className="h-4 w-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <p className="text-xs text-blue-800 font-medium">
-                  Database will be created automatically if it doesn't exist. Choose a meaningful name for your spare parts database.
-                </p>
-              </div>
+              <p className="text-xs text-blue-800 mt-2">
+                Database will be created automatically if it doesn't exist
+              </p>
             </div>
 
             {/* Username */}
@@ -354,7 +323,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
                 disabled={testing || saving}
               />
               <label htmlFor="encrypt" className="ml-2 text-sm text-gray-700">
-                Enable encryption (required for Azure SQL)
+                Enable encryption (for Azure SQL)
               </label>
             </div>
 
@@ -385,22 +354,9 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
               </div>
             )}
           </div>
-
-          {/* Help Text */}
-          <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-800 mb-2 text-sm">Setup Instructions:</h3>
-            <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
-              <li>Ensure SQL Server is installed and running</li>
-              <li>Choose an IP address for network access or use 'localhost'</li>
-              <li>Enter your desired database name (it will be created automatically)</li>
-              <li>Provide SQL Server authentication credentials</li>
-              <li>Click "Test Connection" to verify settings</li>
-              <li>Click "Save & Connect" to complete setup</li>
-            </ol>
-          </div>
         </div>
 
-        {/* Action Buttons - Fixed at bottom */}
+        {/* Footer */}
         <div className="p-6 border-t border-gray-200 bg-white">
           <div className="flex gap-3">
             <button
@@ -416,7 +372,7 @@ export default function DatabaseSetupWizard({ onComplete, isReconfigure = false,
               disabled={saving || testing || !testResult?.success}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
-              {saving ? 'Saving...' : isReconfigure ? 'Update Configuration' : 'Save & Connect'}
+              {saving ? 'Saving...' : isReconfigure ? 'Update' : 'Save & Connect'}
             </button>
           </div>
           {!canTestConnection() && (

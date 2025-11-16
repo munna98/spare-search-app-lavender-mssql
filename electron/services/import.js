@@ -3,13 +3,32 @@ import sql from 'mssql';
 import xlsx from 'xlsx';
 import path from 'path';
 import fs from 'fs';
-import { getPool } from '../database/connection.js';
+import { getPool, initializeDatabase, getCurrentConfig } from '../database/connection.js';
 
 // Excel → MSSQL Import with Bulk Insert
 export async function importExcelToDatabase(filePath, mainWindow = null) {
-  const pool = getPool();
-  if (!pool) {
-    throw new Error('Database not connected');
+  let pool = getPool();
+  
+  // Check connection and reconnect if needed
+  if (!pool || !pool.connected) {
+    console.log('Database pool not available for import, attempting to reconnect...');
+    const config = getCurrentConfig();
+    
+    if (!config) {
+      throw new Error('Database not configured');
+    }
+    
+    try {
+      await initializeDatabase(config);
+      pool = getPool();
+      
+      if (!pool || !pool.connected) {
+        throw new Error('Failed to reconnect to database');
+      }
+    } catch (error) {
+      console.error('Failed to reconnect database for import:', error);
+      throw new Error('Database connection failed. Please check your configuration.');
+    }
   }
 
   try {
@@ -87,6 +106,12 @@ export async function importExcelToDatabase(filePath, mainWindow = null) {
     };
   } catch (error) {
     console.error('Excel import failed:', error);
+    
+    // Check if it's a connection error
+    if (error.code === 'ECONNCLOSED' || error.code === 'ENOTOPEN') {
+      throw new Error('Database connection was lost during import. Please try again.');
+    }
+    
     throw error;
   }
 }

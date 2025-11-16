@@ -19,7 +19,6 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 
-// Create Electron window
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
@@ -46,52 +45,28 @@ function createWindow() {
   return mainWindow;
 }
 
-// Initialize databases on startup
 async function initializeDatabases(window) {
   const savedConfig = loadConfig();
   const savedStockConfig = loadStockConfig();
 
   if (savedConfig) {
     try {
-      console.log('Initializing database connection on app startup...');
       await initializeDatabase(savedConfig);
-      console.log('Main database connected successfully');
-
-      if (savedStockConfig) {
-        try {
-          await initializeStockDatabase(savedStockConfig);
-          console.log('Stock database connected');
-        } catch (error) {
-          console.error('Failed to connect to stock database:', error);
-        }
-      }
-
+      
       window.webContents.send('config:status', {
         configured: true,
         connected: true,
         stockConfigured: !!savedStockConfig
       });
 
-      // Start health monitoring
       startConnectionHealthCheck(window, savedConfig, savedStockConfig);
     } catch (error) {
-      console.error('Failed to connect with saved config:', error);
+      console.error('Database connection failed:', error.message);
 
-      // Retry connection after 2 seconds
       setTimeout(async () => {
         try {
-          console.log('Retrying database connection...');
           await initializeDatabase(savedConfig);
-          console.log('Database reconnected successfully');
-
-          if (savedStockConfig) {
-            try {
-              await initializeStockDatabase(savedStockConfig);
-            } catch (stockError) {
-              console.error('Stock database retry failed:', stockError);
-            }
-          }
-
+          
           window.webContents.send('config:status', {
             configured: true,
             connected: true,
@@ -100,7 +75,7 @@ async function initializeDatabases(window) {
 
           startConnectionHealthCheck(window, savedConfig, savedStockConfig);
         } catch (retryError) {
-          console.error('Retry failed:', retryError);
+          console.error('Retry failed:', retryError.message);
           window.webContents.send('config:status', {
             configured: true,
             connected: false,
@@ -110,27 +85,48 @@ async function initializeDatabases(window) {
       }, 2000);
     }
   } else {
-    window.webContents.send('config:status', { configured: false, connected: false });
+    window.webContents.send('config:status', { 
+      configured: false, 
+      connected: false 
+    });
+  }
+
+  // Initialize stock database after delay
+  if (savedStockConfig && savedConfig) {
+    setTimeout(async () => {
+      try {
+        await initializeStockDatabase(savedStockConfig);
+        
+        window.webContents.send('stock:status', {
+          configured: true,
+          connected: true
+        });
+      } catch (error) {
+        console.error('Stock database connection failed:', error.message);
+        
+        window.webContents.send('stock:status', {
+          configured: true,
+          connected: false,
+          error: error.message
+        });
+      }
+    }, 5000);
   }
 }
 
-// App lifecycle
 app.whenReady().then(async () => {
   const window = createWindow();
 
-  // Register all IPC handlers
   registerDatabaseHandlers(window);
   registerStockHandlers();
   registerFileHandlers(window);
   registerNetworkHandlers();
   registerUpdateHandlers();
 
-  // Initialize databases after window is ready
   window.webContents.once('did-finish-load', async () => {
     await initializeDatabases(window);
   });
 
-  // Check for updates on startup
   updaterManager.checkForUpdatesOnStartup();
 
   app.on('activate', () => {

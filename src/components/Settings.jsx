@@ -21,9 +21,6 @@ export default function Settings({ onBack, onReconfigure }) {
 
   useEffect(() => {
     window.electronAPI.getAppVersion().then(setVersion);
-  }, []);
-
-  useEffect(() => {
     loadDatabaseConfig();
     loadStockDatabaseConfig();
   }, []);
@@ -50,21 +47,8 @@ export default function Settings({ onBack, onReconfigure }) {
     }
   };
 
-  const handleOpenDbConfig = () => {
-    setShowDbConfig(true);
-  };
-
-  const handleOpenStockDbConfig = () => {
-    setShowStockDbConfig(true);
-  };
-
-  const handleOpenBarcodeConfig = () => {
-    setShowBarcodeConfig(true);
-  };
-
   const handleStockConfigSuccess = () => {
     loadStockDatabaseConfig();
-    toast.success('Stock database configured successfully!');
   };
 
   return (
@@ -81,10 +65,9 @@ export default function Settings({ onBack, onReconfigure }) {
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         </div>
 
-        {/* Configuration Buttons */}
         <div className="flex gap-2">
           <button
-            onClick={handleOpenBarcodeConfig}
+            onClick={() => setShowBarcodeConfig(true)}
             className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center text-sm border border-purple-700 transition-colors shadow-sm"
             title="Barcode Configuration"
           >
@@ -93,53 +76,45 @@ export default function Settings({ onBack, onReconfigure }) {
           </button>
 
           <button
-            onClick={handleOpenStockDbConfig}
+            onClick={() => setShowStockDbConfig(true)}
             className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm border border-green-700 transition-colors shadow-sm"
-            title="Stock Database Configuration"
+            title="Stock Database"
           >
             <CubeIcon className="h-4 w-4 mr-1.5" />
-            Stock DB Config
+            Stock DB
           </button>
 
           <button
-            onClick={handleOpenDbConfig}
+            onClick={() => setShowDbConfig(true)}
             className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center text-sm border border-gray-300 transition-colors"
-            title="Main Database Configuration"
+            title="Main Database"
           >
             <ServerIcon className="h-4 w-4 mr-1.5" />
-            Main DB Config
+            Main DB
           </button>
         </div>
       </div>
 
       {/* Database Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Main Database Status */}
-        <div className={`p-4 rounded-lg border ${dbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
-          }`}>
+        <div className={`p-4 rounded-lg border ${dbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
           <div className="flex items-center">
-            <ServerIcon className={`h-6 w-6 mr-3 ${dbConfig ? 'text-green-600' : 'text-yellow-600'
-              }`} />
+            <ServerIcon className={`h-6 w-6 mr-3 ${dbConfig ? 'text-green-600' : 'text-yellow-600'}`} />
             <div>
               <h3 className="font-semibold text-gray-900">Main Database</h3>
-              <p className={`text-sm ${dbConfig ? 'text-green-700' : 'text-yellow-700'
-                }`}>
+              <p className={`text-sm ${dbConfig ? 'text-green-700' : 'text-yellow-700'}`}>
                 {dbConfig ? `Connected to ${dbConfig.database}` : 'Not configured'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Stock Database Status */}
-        <div className={`p-4 rounded-lg border ${stockDbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
-          }`}>
+        <div className={`p-4 rounded-lg border ${stockDbConfig ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
           <div className="flex items-center">
-            <CubeIcon className={`h-6 w-6 mr-3 ${stockDbConfig ? 'text-green-600' : 'text-yellow-600'
-              }`} />
+            <CubeIcon className={`h-6 w-6 mr-3 ${stockDbConfig ? 'text-green-600' : 'text-yellow-600'}`} />
             <div>
               <h3 className="font-semibold text-gray-900">Stock Database</h3>
-              <p className={`text-sm ${stockDbConfig ? 'text-green-700' : 'text-yellow-700'
-                }`}>
+              <p className={`text-sm ${stockDbConfig ? 'text-green-700' : 'text-yellow-700'}`}>
                 {stockDbConfig ? `Connected to ${stockDbConfig.database}` : 'Not configured'}
               </p>
             </div>
@@ -148,7 +123,7 @@ export default function Settings({ onBack, onReconfigure }) {
       </div>
 
       {/* Update Check Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <svg className="h-6 w-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,14 +135,13 @@ export default function Settings({ onBack, onReconfigure }) {
         </div>
 
         <p className="text-gray-600 mb-4">
-          Keep your application up to date with the latest features and security improvements.
+          Keep your application up to date with the latest features and improvements.
         </p>
 
         <button
           onClick={() => {
             if (window.electronAPI && window.electronAPI.checkForUpdates) {
               window.electronAPI.checkForUpdates();
-              toast.info('Checking for updates...');
             } else {
               toast.error('Update feature not available in development mode');
             }
@@ -179,37 +153,21 @@ export default function Settings({ onBack, onReconfigure }) {
           </svg>
           Check for Updates
         </button>
-
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start">
-            <svg className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            <div className="text-sm text-blue-800">
-              <p className="font-medium">Auto-update is enabled</p>
-              <p className="text-xs mt-1">
-                The application automatically checks for updates on startup. Updates are downloaded in the background and installed when you restart the app.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Database Configuration Modal */}
+      {/* Modals */}
       <DatabaseConfigModal
         isOpen={showDbConfig}
         onClose={() => setShowDbConfig(false)}
         onReconfigure={onReconfigure}
       />
 
-      {/* Stock Database Configuration Modal */}
       <StockDatabaseConfig
         isOpen={showStockDbConfig}
         onClose={() => setShowStockDbConfig(false)}
         onSuccess={handleStockConfigSuccess}
       />
 
-      {/* Barcode Configuration Modal */}
       <BarcodeConfiguration
         isOpen={showBarcodeConfig}
         onClose={() => setShowBarcodeConfig(false)}
