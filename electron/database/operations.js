@@ -1,10 +1,10 @@
 // electron/database/operations.js
 import sql from 'mssql';
 import { getPool } from './connection.js';
-import { getStockForPartNumbers } from '../stock/operations.js';
+import { searchPartsInCerobiz } from '../stock/operations.js';
 import { getStockPool } from '../stock/connection.js';
 
-// Search parts in database
+// Search parts in database (imported files) and Cerobiz
 export async function searchParts(searchParams) {
   const pool = getPool();
   if (!pool) {
@@ -43,6 +43,7 @@ export async function searchParts(searchParams) {
 
   console.log(`SQL condition: ${partCondition}, paramValue: "${paramValue}"`);
 
+  // Search in imported files (existing functionality)
   const request = pool.request();
   request.input('term', sql.NVarChar, paramValue);
 
@@ -51,35 +52,39 @@ export async function searchParts(searchParams) {
     FROM parts p
     LEFT JOIN uploaded_files uf ON p.file_id = uf.id
     WHERE ${partCondition}
+    ORDER BY p.part_number
   `);
 
-  const formattedResults = result.recordset.map((row) => ({
+  const fileResults = result.recordset.map((row) => ({
     id: row.id,
     partNumber: row.part_number,
     description: row.description,
     price: row.price || 0,
     price_vat: row.price_vat || 0,
     brand: row.brand || 'Unknown',
+    source: 'files'
   }));
 
-  // Fetch stock information if stock database is connected
-  const stockPool = getStockPool();
-  if (stockPool && stockPool.connected && formattedResults.length > 0) {
-    try {
-      const partNumbers = formattedResults.map(r => r.partNumber);
-      const stockMap = await getStockForPartNumbers(partNumbers);
+  console.log(`Found ${fileResults.length} results in imported files`);
 
-      formattedResults.forEach(result => {
-        const stockInfo = stockMap[result.partNumber];
-        result.stockQty = stockInfo ? stockInfo.stockQty : null;
-        result.productId = stockInfo ? stockInfo.productId : null;
-      });
-    } catch (stockError) {
-      console.error('Error fetching stock information:', stockError);
+  // Search in Cerobiz if stock database is connected
+  let cerobizResults = [];
+  const stockPool = getStockPool();
+  if (stockPool && stockPool.connected) {
+    try {
+      cerobizResults = await searchPartsInCerobiz(searchParams);
+      console.log(`Found ${cerobizResults.length} results in Cerobiz`);
+    } catch (error) {
+      console.error('Error searching in Cerobiz:', error);
     }
+  } else {
+    console.log('Stock database not connected, skipping Cerobiz search');
   }
 
-  return formattedResults;
+  return {
+    cerobiz: cerobizResults,
+    files: fileResults
+  };
 }
 
 // Get uploaded files

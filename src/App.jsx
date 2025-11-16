@@ -13,7 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 export default function App() {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState([]);
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState({ cerobiz: [], files: [] });
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFileManager, setShowFileManager] = useState(false);
@@ -79,14 +79,22 @@ export default function App() {
       });
 
       if (response.success) {
+        // Response now contains { cerobiz: [...], files: [...] }
         setResults(response.results);
+        
+        const totalResults = (response.results.cerobiz?.length || 0) + (response.results.files?.length || 0);
+        if (totalResults === 0) {
+          toast.info('No results found for this search');
+        } else {
+          toast.success(`Found ${totalResults} result${totalResults !== 1 ? 's' : ''}`);
+        }
       } else {
         toast.error(`Search error: ${response.message}`);
-        setResults([]);
+        setResults({ cerobiz: [], files: [] });
       }
     } catch (error) {
       toast.error(`An error occurred: ${error.message}`);
-      setResults([]);
+      setResults({ cerobiz: [], files: [] });
     } finally {
       setLoading(false);
     }
@@ -140,51 +148,50 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen p-6 pt-0 bg-gray-50">
       {/* Update Notification - Shows in all screens */}
       <UpdateNotification />
       
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-6xl mx-auto">
         <ToastContainer position="top-right" autoClose={3000} />
         
         <div className="flex justify-between items-center mb-6">
-  <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
 
-  <div className="flex gap-3">
-    {/* Manage Files */}
-    <button 
-      onClick={() => setShowFileManager(true)}
-      className="
-        px-4 py-2 bg-white border border-gray-300 
-        rounded-md text-sm flex items-center gap-2
-        hover:shadow-md hover:bg-gray-100 
-        transition-all duration-200
-        active:scale-[0.98]
-      "
-      title="Manage uploaded files"
-    >
-      <FolderOpenIcon className="h-5 w-5 text-gray-600" />
-      <span className="text-gray-700">Manage Files</span>
-    </button>
+          <div className="flex gap-3">
+            {/* Manage Files */}
+            <button 
+              onClick={() => setShowFileManager(true)}
+              className="
+                px-4 py-2 bg-white border border-gray-300 
+                rounded-md text-sm flex items-center gap-2
+                hover:shadow-md hover:bg-gray-100 
+                transition-all duration-200
+                active:scale-[0.98]
+              "
+              title="Manage uploaded files"
+            >
+              <FolderOpenIcon className="h-5 w-5 text-gray-600" />
+              <span className="text-gray-700">Manage Files</span>
+            </button>
 
-    {/* Settings */}
-    <button 
-      onClick={() => setShowSettings(true)}
-      className="
-        px-4 py-2 bg-white border border-gray-300 
-        rounded-md text-sm flex items-center gap-2
-        hover:shadow-md hover:bg-gray-100 
-        transition-all duration-200
-        active:scale-[0.98]
-      "
-    >
-      <CogIcon className="h-5 w-5 text-gray-600" />
-      <span className="text-gray-700">Settings</span>
-    </button>
-  </div>
-</div>
+            {/* Settings */}
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="
+                px-4 py-2 bg-white border border-gray-300 
+                rounded-md text-sm flex items-center gap-2
+                hover:shadow-md hover:bg-gray-100 
+                transition-all duration-200
+                active:scale-[0.98]
+              "
+            >
+              <CogIcon className="h-5 w-5 text-gray-600" />
+              <span className="text-gray-700">Settings</span>
+            </button>
+          </div>
+        </div>
 
-        
         <PartSearchForm onSearch={handleSearch} currentQuery={query} />
         <RecentSearches items={recent} onSelect={(term) => {
           setQuery(term);

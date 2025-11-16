@@ -6,7 +6,7 @@ export default function RecentSearches({ items, onSelect }) {
   if (!items.length) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-2">
       <div className="mb-2 flex items-center text-sm text-gray-600">
         <ClockIcon className="mr-1 h-4 w-4" />
         Recent searches:
