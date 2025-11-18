@@ -63,7 +63,7 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductID,
         p.ProductCode AS partNumber,
         p.ProductName AS description,
-        p.PCost AS cost,
+        p.LastCost AS cost,
         ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS stockQty
       FROM 
         dbo.inv_Product p
@@ -75,7 +75,7 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductID,
         p.ProductCode,
         p.ProductName,
-        p.PCost
+        p.LastCost
       ORDER BY p.ProductCode
     `);
 

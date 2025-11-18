@@ -1,7 +1,7 @@
 // src/components/SearchResults.jsx
 import React, { useState } from "react";
-import { 
-  ClipboardDocumentIcon, 
+import {
+  ClipboardDocumentIcon,
   ClipboardDocumentCheckIcon,
   PrinterIcon,
   CubeIcon,
@@ -11,12 +11,34 @@ import {
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import PrintDialog from './PrintDialog';
+import PriceCalculatorPopup from './PriceCalculatorPopup';
+
 
 export default function SearchResults({ results, query }) {
   const [copiedId, setCopiedId] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [itemsToPrint, setItemsToPrint] = useState([]);
+
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [selectedPrice, setSelectedPrice] = useState(null);
+  const [calculatorPosition, setCalculatorPosition] = useState({ top: 0, left: 0 });
+
+  const handlePriceClick = (event, price) => {
+    const rect = event.target.getBoundingClientRect();
+    setCalculatorPosition({
+      top: rect.top - 210, // Position above the price
+      left: Math.max(10, rect.left - 100)
+    });
+    setSelectedPrice(price);
+    setShowCalculator(true);
+  };
+
+  const handleCalculate = (calculatedPrice, percentage) => {
+    toast.success(`Calculated price: $${calculatedPrice.toFixed(2)} (${percentage}% markup)`, {
+      autoClose: 3000
+    });
+  };
 
   // Separate results by source
   const cerobizResults = results?.cerobiz || [];
@@ -28,7 +50,7 @@ export default function SearchResults({ results, query }) {
       await navigator.clipboard.writeText(partNumber);
       setCopiedId(id);
       // toast.success(`Copied: ${partNumber}`, { autoClose: 2000 });
-      
+
       // setTimeout(() => {
       //   setCopiedId(null);
       // }, 2000);
@@ -40,7 +62,7 @@ export default function SearchResults({ results, query }) {
   const handleSelectAll = (e, source) => {
     const sourceResults = source === 'cerobiz' ? cerobizResults : fileResults;
     const sourceIds = sourceResults.map(r => `${source}-${r.id}`);
-    
+
     if (e.target.checked) {
       setSelectedItems(prev => [...new Set([...prev, ...sourceIds])]);
     } else {
@@ -75,9 +97,9 @@ export default function SearchResults({ results, query }) {
       toast.warning('Please select at least one item to print');
       return;
     }
-    
+
     const items = [];
-    
+
     // Add selected Cerobiz items
     selectedItems.forEach(itemId => {
       if (itemId.startsWith('cerobiz-')) {
@@ -98,7 +120,7 @@ export default function SearchResults({ results, query }) {
         }
       }
     });
-    
+
     setItemsToPrint(items);
     setShowPrintDialog(true);
   };
@@ -161,7 +183,7 @@ export default function SearchResults({ results, query }) {
               Results from Cerobiz ({cerobizResults.length})
             </h3>
           </div>
-          
+
           <div className="overflow-x-auto shadow-sm border-2 border-green-200 rounded-lg bg-green-50">
             <table className="w-full table-auto text-sm">
               <thead>
@@ -184,13 +206,11 @@ export default function SearchResults({ results, query }) {
               </thead>
               <tbody className="bg-white">
                 {cerobizResults.map((row, idx) => (
-                  <tr 
+                  <tr
                     key={`cerobiz-${row.id}`}
-                    className={`${
-                      idx % 2 === 1 ? "bg-green-50" : "bg-white"
-                    } ${
-                      selectedItems.includes(`cerobiz-${row.id}`) ? "ring-2 ring-green-400 ring-inset" : ""
-                    } hover:bg-green-100 transition-colors`}
+                    className={`${idx % 2 === 1 ? "bg-green-50" : "bg-white"
+                      } ${selectedItems.includes(`cerobiz-${row.id}`) ? "ring-2 ring-green-400 ring-inset" : ""
+                      } hover:bg-green-100 transition-colors`}
                   >
                     <td className="p-3 border-b border-green-100">
                       <input
@@ -208,15 +228,19 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-green-100 text-gray-700">{row.description}</td>
                     <td className="p-3 border-b border-green-100">
-                      <span className={`text-sm flex items-center font-semibold ${
-                        row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <span className={`text-sm flex items-center font-semibold ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         <CubeIcon className="h-4 w-4 mr-1" />
                         {row.stockQty}
                       </span>
                     </td>
-                    <td className="p-3 border-b border-green-100 text-lg font-bold text-gray-900">
-                      ${row.cost?.toFixed(2) || '0.00'}
+                    <td className="p-3 border-b border-green-100">
+                      <button
+                        onClick={(e) => handlePriceClick(e, row.cost)}
+                        className="text-lg font-bold text-gray-900 rounded px-2 hover:text-green-600 hover:bg-green-200"
+                      >
+                        ${row.cost?.toFixed(2) || '0.00'}
+                      </button>
                     </td>
                     <td className="p-3 border-b border-green-100">
                       <button
@@ -224,7 +248,7 @@ export default function SearchResults({ results, query }) {
                         className="p-1 hover:bg-green-200 rounded transition-colors"
                         title="Print label"
                       >
-                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700"/>
+                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                       </button>
                     </td>
                   </tr>
@@ -244,7 +268,7 @@ export default function SearchResults({ results, query }) {
               Results from Files ({fileResults.length})
             </h3>
           </div>
-          
+
           <div className="overflow-x-auto shadow-sm border-2 border-blue-200 rounded-lg bg-blue-50">
             <table className="w-full table-auto text-sm">
               <thead>
@@ -267,13 +291,11 @@ export default function SearchResults({ results, query }) {
               </thead>
               <tbody className="bg-white">
                 {fileResults.map((row, idx) => (
-                  <tr 
+                  <tr
                     key={`files-${row.id}`}
-                    className={`${
-                      idx % 2 === 1 ? "bg-blue-50" : "bg-white"
-                    } ${
-                      selectedItems.includes(`files-${row.id}`) ? "ring-2 ring-blue-400 ring-inset" : ""
-                    } hover:bg-blue-100 transition-colors`}
+                    className={`${idx % 2 === 1 ? "bg-blue-50" : "bg-white"
+                      } ${selectedItems.includes(`files-${row.id}`) ? "ring-2 ring-blue-400 ring-inset" : ""
+                      } hover:bg-blue-100 transition-colors`}
                   >
                     <td className="p-3 border-b border-blue-100">
                       <input
@@ -291,8 +313,13 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-blue-100 font-medium text-blue-600">{row.brand}</td>
                     <td className="p-3 border-b border-blue-100 text-gray-700">{row.description}</td>
-                    <td className="p-3 border-b border-blue-100 text-lg font-bold text-gray-900">
-                      ${row.price?.toFixed(2) || '0.00'}
+                    <td className="p-3 border-b border-blue-100">
+                      <button
+                        onClick={(e) => handlePriceClick(e, row.price)}
+                        className="text-lg font-bold text-gray-900 rounded px-2 hover:text-blue-600 hover:bg-blue-200 "
+                      >
+                        ${row.price?.toFixed(2) || '0.00'}
+                      </button>
                     </td>
                     <td className="p-3 border-b border-blue-100">
                       <button
@@ -300,7 +327,7 @@ export default function SearchResults({ results, query }) {
                         className="p-1 hover:bg-blue-200 rounded transition-colors"
                         title="Print label"
                       >
-                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700"/>
+                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                       </button>
                     </td>
                   </tr>
@@ -320,6 +347,15 @@ export default function SearchResults({ results, query }) {
         }}
         items={itemsToPrint}
         isBulk={itemsToPrint.length > 1}
+      />
+
+      {/* Price Calculator Popup */}
+      <PriceCalculatorPopup
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        basePrice={selectedPrice}
+        onCalculate={handleCalculate}
+        position={calculatorPosition}
       />
     </>
   );
