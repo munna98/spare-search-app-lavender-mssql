@@ -1,7 +1,7 @@
 // src/components/PriceCalculatorPopup.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { XMarkIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MinusIcon, PlusIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 
 export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCalculate, position }) {
   const [percentage, setPercentage] = useState(25);
@@ -29,8 +29,8 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
   }, [isOpen, onClose]);
 
   const calculatePrice = (percent) => {
-    const increase = (basePrice * percent) / 100;
-    const total = basePrice + increase;
+    const decrease = (basePrice * percent) / 100;
+    const total = basePrice - decrease;
     setCalculatedPrice(total);
   };
 
@@ -65,23 +65,29 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
         }
       `}</style>
 
+      {/* Header with Calculator Icon */}
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+        <CalculatorIcon className="h-5 w-5 text-blue-600" />
+        <h3 className="text-sm font-semibold text-gray-700">Calculator</h3>
+      </div>
+
       {/* Close Button */}
       <button
         onClick={onClose}
-        className="absolute top-2 right-2  p-0.5 hover:bg-gray-100 rounded transition-colors"
+        className="absolute top-2 right-2 p-0.5 hover:bg-gray-100 rounded transition-colors"
       >
         <XMarkIcon className="h-5 w-5 text-gray-400" />
       </button>
 
       {/* Price Display */}
-      <div className="space-y-2 mt-5 mb-3 text-sm">
+      <div className="space-y-2 mb-3 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-600">Base:</span>
           <span className="font-semibold text-gray-900">${basePrice?.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-600">Markup:</span>
-          <span className="font-semibold text-blue-600">+{percentage}%</span>
+          <span className="text-gray-600">Margin:</span>
+          <span className="font-semibold text-blue-600">-{percentage}%</span>
         </div>
         <div className="h-px bg-gray-200"></div>
         <div className="flex justify-between">
@@ -127,10 +133,11 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
             <button
               key={percent}
               onClick={() => handlePercentageChange(percent)}
-              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${percentage === percent
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                percentage === percent
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
               {percent}%
             </button>
