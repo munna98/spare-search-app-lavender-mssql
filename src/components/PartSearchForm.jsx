@@ -19,7 +19,7 @@ export default function PartSearchForm({ onSearch, currentQuery = "" }) {
 
   const handleClear = () => {
     setInput("");
-    // Clear results by calling onSearch with empty string
+    // Call onSearch with empty string to clear results
     onSearch("", searchMode);
   };
 

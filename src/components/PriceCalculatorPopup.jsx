@@ -45,10 +45,10 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
   return (
     <div
       ref={popupRef}
-      className="absolute z-50 bg-white rounded-lg shadow-2xl border-2 border-blue-400 p-3 w-64"
+      className="fixed z-50 bg-white rounded-lg shadow-2xl border-2 border-blue-400 p-3 w-64"
       style={{
-        top: position.top,
-        left: position.left,
+        top: `${position.top}px`,
+        left: `${position.left}px`,
         animation: 'slideIn 0.15s ease-out'
       }}
     >

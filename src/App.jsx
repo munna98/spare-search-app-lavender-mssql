@@ -64,6 +64,13 @@ export default function App() {
   };
 
   const handleSearch = async (partNumber, searchMode = 'contains') => {
+    // Clear results if search is empty
+    if (!partNumber.trim()) {
+      setQuery("");
+      setResults({ cerobiz: [], files: [] });
+      return;
+    }
+
     setQuery(partNumber);
     setLoading(true);
     
@@ -81,9 +88,7 @@ export default function App() {
         setResults(response.results);
         
         const totalResults = (response.results.cerobiz?.length || 0) + (response.results.files?.length || 0);
-        if (totalResults === 0) {
-          toast.info('No results found', { autoClose: 2000 });
-        }
+        // Removed the "No results found" toast
       } else {
         toast.error(`Search error: ${response.message}`);
         setResults({ cerobiz: [], files: [] });
