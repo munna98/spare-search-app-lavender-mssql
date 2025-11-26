@@ -149,7 +149,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen p-6 pt-0 bg-gray-50">
+    <div className="min-h-screen p-32 pt-0 bg-gray-50">
       <UpdateNotification />
       
       <div className="p-6 max-w-6xl mx-auto">
