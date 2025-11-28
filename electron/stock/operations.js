@@ -253,3 +253,92 @@ export async function getStockForPartNumbers(partNumbers) {
     return {};
   }
 }
+
+// Get stock history for a specific product
+export async function getStockHistory(productId, limit = 5) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        return [];
+      }
+    } else {
+      console.log('Stock database not configured');
+      return [];
+    }
+  }
+
+  try {
+    console.log(`Fetching stock history for ProductID: ${productId}, Limit: ${limit}`);
+
+    const request = stockPool.request();
+    request.timeout = 15000;
+    request.input('productId', sql.Int, productId);
+    request.input('limit', sql.Int, limit);
+
+    const result = await request.query(`
+      SELECT TOP (@limit)
+        s.StockIn,
+        s.StockOut,
+        s.PRate,
+        s.SRate,
+        tm.TransDate,
+        tm.VoucherNo,
+        tm.TransMasterID,
+        tm.CashPartyID,
+        tm.VoucherID,
+        ISNULL(al.LedgerName, 'N/A') AS PartyName,
+        ISNULL(cv.Remarks, 'N/A') AS TransactionType
+      FROM 
+        dbo.inv_Stock s
+      INNER JOIN 
+        dbo.inv_TransMaster tm ON s.TransMasterID = tm.TransMasterID
+      LEFT JOIN 
+        dbo.acc_Ledger al ON tm.CashPartyID = al.LedgerID
+      LEFT JOIN 
+        dbo.core_Voucher cv ON tm.VoucherID = cv.VoucherID
+      WHERE 
+        s.ProductID = @productId
+      ORDER BY 
+        tm.TransDate DESC, s.TransMasterID DESC
+    `);
+
+    console.log(`Found ${result.recordset.length} stock history records`);
+
+    return result.recordset.map(row => ({
+      stockIn: row.StockIn || 0,
+      stockOut: row.StockOut || 0,
+      pRate: row.PRate || 0,
+      sRate: row.SRate || 0,
+      transDate: row.TransDate,
+      voucherNo: row.VoucherNo,
+      partyName: row.PartyName,
+      transactionType: row.TransactionType,
+      transMasterId: row.TransMasterID
+    }));
+
+  } catch (error) {
+    console.error('Error fetching stock history:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    return [];
+  }
+}

@@ -2,6 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
+import { getStockHistory } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Test stock connection
@@ -52,6 +53,35 @@ export function registerStockHandlers() {
         encrypt: config.encrypt
       } : null
     };
+  });
+
+  ipcMain.handle('stock:getHistory', async (event, params) => {
+    try {
+      const { productId, limit = 5 } = params;
+      
+      if (!productId) {
+        return { 
+          success: false, 
+          message: 'Product ID is required',
+          history: [] 
+        };
+      }
+
+      const history = await getStockHistory(productId, limit);
+      
+      return { 
+        success: true, 
+        history,
+        message: `Retrieved ${history.length} stock transaction(s)`
+      };
+    } catch (error) {
+      console.error('Stock history handler error:', error);
+      return { 
+        success: false, 
+        message: error.message,
+        history: [] 
+      };
+    }
   });
 
   // Diagnostic handler (for troubleshooting)

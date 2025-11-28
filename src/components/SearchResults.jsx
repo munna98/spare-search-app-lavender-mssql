@@ -1,4 +1,4 @@
-// src/components/SearchResults.jsx
+// src/components/SearchResults.jsx - COMPLETE UPDATED FILE
 import React, { useState } from "react";
 import {
   ClipboardDocumentIcon,
@@ -12,7 +12,7 @@ import {
 import { toast } from 'react-toastify';
 import PrintDialog from './PrintDialog';
 import PriceCalculatorPopup from './PriceCalculatorPopup';
-
+import StockHistoryDialog from './StockHistoryDialog';
 
 export default function SearchResults({ results, query }) {
   const [copiedId, setCopiedId] = useState(null);
@@ -24,14 +24,27 @@ export default function SearchResults({ results, query }) {
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [calculatorPosition, setCalculatorPosition] = useState({ top: 0, left: 0 });
 
+  // Stock History Dialog State
+  const [showStockHistory, setShowStockHistory] = useState(false);
+  const [selectedStockItem, setSelectedStockItem] = useState(null);
+
   const handlePriceClick = (event, price) => {
     const rect = event.target.getBoundingClientRect();
     setCalculatorPosition({
-      top: rect.top - 210, // Position above the price
+      top: rect.top - 210,
       left: Math.max(10, rect.left - 100)
     });
     setSelectedPrice(price);
     setShowCalculator(true);
+  };
+
+  const handleStockClick = (partNumber, productId, stockQty) => {
+    setSelectedStockItem({
+      partNumber,
+      productId,
+      stockQty
+    });
+    setShowStockHistory(true);
   };
 
   const handleCalculate = (calculatedPrice, percentage) => {
@@ -49,11 +62,6 @@ export default function SearchResults({ results, query }) {
     try {
       await navigator.clipboard.writeText(partNumber);
       setCopiedId(id);
-      // toast.success(`Copied: ${partNumber}`, { autoClose: 2000 });
-
-      // setTimeout(() => {
-      //   setCopiedId(null);
-      // }, 2000);
     } catch (error) {
       toast.error('Failed to copy to clipboard');
     }
@@ -82,7 +90,6 @@ export default function SearchResults({ results, query }) {
   };
 
   const handlePrintSingle = (item, source) => {
-    // Format item for printing
     const printItem = {
       ...item,
       price: source === 'cerobiz' ? item.cost : item.price,
@@ -100,7 +107,6 @@ export default function SearchResults({ results, query }) {
 
     const items = [];
 
-    // Add selected Cerobiz items
     selectedItems.forEach(itemId => {
       if (itemId.startsWith('cerobiz-')) {
         const id = parseInt(itemId.replace('cerobiz-', ''));
@@ -125,7 +131,6 @@ export default function SearchResults({ results, query }) {
     setShowPrintDialog(true);
   };
 
-  // Show "No results found" message if query exists but no results
   if (query && totalResults === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -143,7 +148,6 @@ export default function SearchResults({ results, query }) {
     );
   }
 
-  // Don't show anything if no query has been entered yet
   if (totalResults === 0) return null;
 
   const renderCopyButton = (partNumber, id, source) => (
@@ -228,11 +232,16 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-green-100 text-gray-700">{row.description}</td>
                     <td className="p-3 border-b border-green-100">
-                      <span className={`text-sm flex items-center font-semibold ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
+                      <button
+                        onClick={() => handleStockClick(row.partNumber, row.productId, row.stockQty)}
+                        className={`text-sm flex items-center font-semibold px-2 py-1 rounded hover:bg-green-200 transition-colors ${
+                          row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                        title="Click to view stock history"
+                      >
                         <CubeIcon className="h-4 w-4 mr-1" />
                         {row.stockQty}
-                      </span>
+                      </button>
                     </td>
                     <td className="p-3 border-b border-green-100">
                       <button
@@ -356,6 +365,17 @@ export default function SearchResults({ results, query }) {
         basePrice={selectedPrice}
         onCalculate={handleCalculate}
         position={calculatorPosition}
+      />
+
+      {/* Stock History Dialog */}
+      <StockHistoryDialog
+        isOpen={showStockHistory}
+        onClose={() => {
+          setShowStockHistory(false);
+          setSelectedStockItem(null);
+        }}
+        partNumber={selectedStockItem?.partNumber}
+        productId={selectedStockItem?.productId}
       />
     </>
   );

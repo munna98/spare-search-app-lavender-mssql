@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testStockConnection: (config) => ipcRenderer.invoke('stock:test', config),
   saveStockConfig: (config) => ipcRenderer.invoke('stock:save', config),
   checkStockConfig: () => ipcRenderer.invoke('stock:checkConfig'),
+
+  getStockHistory: (params) => ipcRenderer.invoke('stock:getHistory', params),
   
   // File operations
   openFile: () => ipcRenderer.invoke('dialog:openFile'),
