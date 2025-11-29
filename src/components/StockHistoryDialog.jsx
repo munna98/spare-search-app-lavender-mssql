@@ -88,51 +88,36 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
 
                 {/* Header - Following DBConfig Style */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 text-white">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <CubeIcon className="h-6 w-6 mr-3" />
+                        <div className="flex items-center space-x-3">
+                            <CubeIcon className="h-7 w-7 text-blue-200" />
                             <div>
                                 <h2 className="text-xl font-bold">Stock Movement History</h2>
-                                <p className="text-blue-100 text-xs mt-1">
+                                <p className="text-blue-100 text-sm mt-1">
                                     Part Number: <span className="font-semibold">{partNumber}</span>
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
-                        >
-                            <XMarkIcon className="h-5 w-5" />
-                        </button>
+
+                        <div className="flex items-center space-x-6">
+                            <div className=" flex items-center text-right gap-2">
+                                <p className="text-blue-100 text-sm font-medium">Current Stock:</p>
+                                <p className="text-2xl font-bold">{currentStock}</p>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                            >
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-4">
-
-                        {/* Summary Bar */}
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 flex items-center justify-between">
-                            <div className="flex items-center ml-2 gap-8">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-gray-600">Current Stock:</span>
-                                    <span className="text-xl font-bold text-gray-900">{currentStock}</span>
-                                </div>
-                                <div className="h-8 w-px bg-gray-300"></div>
-                                <div className="flex items-center gap-2">
-                                    <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />
-                                    <span className="text-sm text-gray-600">Total In:</span>
-                                    <span className="text-xl font-bold text-green-700">+{summary.totalIn}</span>
-                                </div>
-                                <div className="h-8 w-px bg-gray-300"></div>
-                                <div className="flex items-center gap-2">
-                                    <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />
-                                    <span className="text-sm text-gray-600">Total Out:</span>
-                                    <span className="text-xl font-bold text-red-700">-{summary.totalOut}</span>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Filter Buttons */}
                         <div>
@@ -150,8 +135,8 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                         key={option.value}
                                         onClick={() => setFilter(option.value)}
                                         className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${filter === option.value
-                                                ? 'bg-blue-600 text-white shadow-md'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
                                         {option.label}
@@ -214,8 +199,8 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                                         </td>
                                                         <td className="p-3 whitespace-nowrap">
                                                             <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${isIn
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-red-100 text-red-800'
                                                                 }`}>
                                                                 {item.transactionType || 'N/A'}
                                                             </span>
