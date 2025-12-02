@@ -128,8 +128,8 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                             <div className="flex gap-2">
                                 {[
                                     { value: 'all', label: 'All Transactions' },
-                                    { value: 'in', label: 'Stock In Only' },
-                                    { value: 'out', label: 'Stock Out Only' }
+                                    { value: 'in', label: 'Stock In' },
+                                    { value: 'out', label: 'Stock Out' }
                                 ].map((option) => (
                                     <button
                                         key={option.value}
@@ -156,7 +156,7 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                             </th>
                                             <th className="p-3 border-b border-gray-200">Type</th>
                                             <th className="p-3 border-b border-gray-200">
-                                                Voucher
+                                                V No
                                             </th>
                                             <th className="p-3 border-b border-gray-200">
                                                 Party Name
@@ -164,7 +164,7 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                             <th className="p-3 border-b border-gray-200 text-right">
                                                 Rate
                                             </th>
-                                            <th className="p-3 border-b border-gray-200 text-right">Quantity</th>
+                                            <th className="p-3 border-b border-gray-200 text-right">Qty</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm">
