@@ -291,6 +291,7 @@ export async function getStockHistory(productId, limit = 5) {
         s.SRate,
         tm.TransDate,
         tm.VoucherNo,
+        tm.RefNo,
         tm.TransMasterID,
         tm.CashPartyID,
         tm.VoucherID,
@@ -319,6 +320,7 @@ export async function getStockHistory(productId, limit = 5) {
       sRate: row.SRate || 0,
       transDate: row.TransDate,
       voucherNo: row.VoucherNo,
+      refNo: row.RefNo,
       partyName: row.PartyName,
       transactionType: row.TransactionType,
       transMasterId: row.TransMasterID

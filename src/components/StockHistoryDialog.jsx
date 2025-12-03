@@ -1,3 +1,4 @@
+// src/components/StockHistoryDialog.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     XMarkIcon,
@@ -87,7 +88,7 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
 
-                {/* Header - Following DBConfig Style */}
+                {/* Header */}
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -101,7 +102,7 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                         </div>
 
                         <div className="flex items-center space-x-6">
-                            <div className=" flex items-center text-right gap-2">
+                            <div className="flex items-center text-right gap-2">
                                 <p className="text-blue-100 text-sm font-medium">Current Stock:</p>
                                 <p className="text-2xl font-bold">{currentStock}</p>
                             </div>
@@ -133,7 +134,10 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onClick={() => setFilter(option.value)}
+                                        onClick={() => {
+                                            setFilter(option.value);
+                                            setVisibleCount(20);
+                                        }}
                                         className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${filter === option.value
                                             ? 'bg-blue-600 text-white shadow-md'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -151,19 +155,11 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-gray-100 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                         <tr>
-                                            <th className="p-3 border-b border-gray-200">
-                                                Date
-                                            </th>
+                                            <th className="p-3 border-b border-gray-200">Date</th>
                                             <th className="p-3 border-b border-gray-200">Type</th>
-                                            <th className="p-3 border-b border-gray-200">
-                                                V No
-                                            </th>
-                                            <th className="p-3 border-b border-gray-200">
-                                                Party Name
-                                            </th>
-                                            <th className="p-3 border-b border-gray-200 text-right">
-                                                Rate
-                                            </th>
+                                            <th className="p-3 border-b border-gray-200">V No / Ref</th>
+                                            <th className="p-3 border-b border-gray-200">Party Name</th>
+                                            <th className="p-3 border-b border-gray-200 text-right">Rate</th>
                                             <th className="p-3 border-b border-gray-200 text-right">Qty</th>
                                         </tr>
                                     </thead>
@@ -206,9 +202,16 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                                             </span>
                                                         </td>
                                                         <td className="p-3 whitespace-nowrap text-gray-700 font-medium">
-                                                            {item.voucherNo || '-'}
+                                                            <div className="flex flex-col">
+                                                                <span>{item.voucherNo || '-'}</span>
+                                                                {item.refNo && (
+                                                                    <span className="text-xs text-gray-700 font-medium">
+                                                                        {item.refNo}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
-                                                        <td className="p-3 text-gray-900 max-w-xs truncate" title={item.partyName}>
+                                                        <td className="p-3 text-gray-900 max-w-[200px] truncate" title={item.partyName}>
                                                             {item.partyName || '-'}
                                                         </td>
                                                         <td className="p-3 whitespace-nowrap text-right text-gray-700 font-mono">
