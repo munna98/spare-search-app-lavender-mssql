@@ -2,7 +2,7 @@
 import sql from 'mssql';
 import { getStockPool, getStockConfig, initializeStockDatabase } from './connection.js';
 
-// Search parts directly in Cerobiz (inv_Product)
+// Search parts directly in Cerobiz (inv_Product) including compatible parts
 export async function searchPartsInCerobiz(searchParams) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
@@ -32,24 +32,29 @@ export async function searchPartsInCerobiz(searchParams) {
     console.log(`Cerobiz Search: "${originalTerm}" -> trimmed to: "${term}" (mode: ${mode})`);
 
     let partCondition;
+    let remarksCondition;
     let paramValue;
 
     switch (mode) {
       case 'startsWith':
         partCondition = "REPLACE(p.ProductCode, ' ', '') LIKE @term";
+        remarksCondition = "REPLACE(p.Remarks, ' ', '') LIKE @termStart OR REPLACE(p.Remarks, ' ', '') LIKE @termMiddle";
         paramValue = `${term}%`;
         break;
       case 'endsWith':
         partCondition = "REPLACE(p.ProductCode, ' ', '') LIKE @term";
+        remarksCondition = "REPLACE(p.Remarks, ' ', '') LIKE @termEnd OR REPLACE(p.Remarks, ' ', '') LIKE @termMiddle";
         paramValue = `%${term}`;
         break;
       case 'exact':
         partCondition = "REPLACE(p.ProductCode, ' ', '') = @term";
+        remarksCondition = "REPLACE(p.Remarks, ' ', '') LIKE @termExact OR REPLACE(p.Remarks, ' ', '') LIKE @termMiddle";
         paramValue = term;
         break;
       case 'contains':
       default:
         partCondition = "REPLACE(p.ProductCode, ' ', '') LIKE @term";
+        remarksCondition = "REPLACE(p.Remarks, ' ', '') LIKE @term";
         paramValue = `%${term}%`;
         break;
     }
@@ -58,28 +63,47 @@ export async function searchPartsInCerobiz(searchParams) {
     request.timeout = 15000;
     request.input('term', sql.NVarChar, paramValue);
 
+    // Add additional parameters for Remarks search patterns
+    if (mode === 'startsWith') {
+      request.input('termStart', sql.NVarChar, `${term}%`);
+      request.input('termMiddle', sql.NVarChar, `%,${term}%`);
+    } else if (mode === 'endsWith') {
+      request.input('termEnd', sql.NVarChar, `%${term}`);
+      request.input('termMiddle', sql.NVarChar, `%${term},%`);
+    } else if (mode === 'exact') {
+      request.input('termExact', sql.NVarChar, `${term},%`);
+      request.input('termMiddle', sql.NVarChar, `%,${term},%`);
+    }
+
     const result = await request.query(`
       SELECT TOP 100
         p.ProductID,
         p.ProductCode AS partNumber,
         p.ProductName AS description,
         p.LastCost AS cost,
+        p.Remarks,
+        CASE 
+          WHEN ${partCondition} THEN 0
+          WHEN ${remarksCondition} THEN 1
+          ELSE 2
+        END AS matchType,
         ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS stockQty
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
         dbo.inv_Stock s ON p.ProductID = s.ProductID
       WHERE 
-        ${partCondition}
+        ${partCondition} OR ${remarksCondition}
       GROUP BY 
         p.ProductID,
         p.ProductCode,
         p.ProductName,
-        p.LastCost
-      ORDER BY p.ProductCode
+        p.LastCost,
+        p.Remarks
+      ORDER BY matchType, p.ProductCode
     `);
 
-    console.log(`Found ${result.recordset.length} results in Cerobiz`);
+    console.log(`Found ${result.recordset.length} results in Cerobiz (including compatible parts)`);
 
     return result.recordset.map(row => ({
       id: row.ProductID,
@@ -88,7 +112,9 @@ export async function searchPartsInCerobiz(searchParams) {
       description: row.description,
       cost: row.cost || 0,
       stockQty: row.stockQty,
-      source: 'cerobiz'
+      source: 'cerobiz',
+      isCompatible: row.matchType === 1, // True if matched via Remarks
+      remarks: row.Remarks
     }));
 
   } catch (error) {

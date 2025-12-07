@@ -1,4 +1,4 @@
-// src/components/SearchResults.jsx - COMPLETE UPDATED FILE
+// src/components/SearchResults.jsx - WITH COMPATIBLE PARTS INDICATION
 import React, { useState } from "react";
 import {
   ClipboardDocumentIcon,
@@ -57,6 +57,8 @@ export default function SearchResults({ results, query }) {
   const cerobizResults = results?.cerobiz || [];
   const fileResults = results?.files || [];
   const totalResults = cerobizResults.length + fileResults.length;
+
+
 
   const handleCopy = async (partNumber, id) => {
     try {
@@ -164,6 +166,8 @@ export default function SearchResults({ results, query }) {
     </button>
   );
 
+
+
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
@@ -226,7 +230,17 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-green-100">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{row.partNumber}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{row.partNumber}</span>
+                          {row.isCompatible && (
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300"
+                              title="Found in remarks/compatible parts"
+                            >
+                              From Remarks
+                            </span>
+                          )}
+                        </div>
                         {renderCopyButton(row.partNumber, row.id, 'cerobiz')}
                       </div>
                     </td>
@@ -234,9 +248,8 @@ export default function SearchResults({ results, query }) {
                     <td className="p-3 border-b border-green-100">
                       <button
                         onClick={() => handleStockClick(row.partNumber, row.productId, row.stockQty)}
-                        className={`text-sm flex items-center font-semibold px-2 py-1 rounded hover:bg-green-200 transition-colors ${
-                          row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}
+                        className={`text-sm flex items-center font-semibold px-2 py-1 rounded hover:bg-green-200 transition-colors ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}
                         title="Click to view stock history"
                       >
                         <CubeIcon className="h-4 w-4 mr-1" />
