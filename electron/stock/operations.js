@@ -3,6 +3,7 @@ import sql from 'mssql';
 import { getStockPool, getStockConfig, initializeStockDatabase } from './connection.js';
 
 // Search parts directly in Cerobiz (inv_Product) including compatible parts
+// EXCLUDES VoucherID=20 (Opening Stock) from stock calculation
 export async function searchPartsInCerobiz(searchParams) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
@@ -92,6 +93,11 @@ export async function searchPartsInCerobiz(searchParams) {
         dbo.inv_Product p
       LEFT JOIN 
         dbo.inv_Stock s ON p.ProductID = s.ProductID
+      LEFT JOIN
+        dbo.inv_TransMaster tm ON s.TransMasterID = tm.TransMasterID
+      WHERE 
+        (${partCondition} OR ${remarksCondition})
+        AND NOT (tm.VoucherID = 20 AND CAST(tm.TransDate AS DATE) = '2026-01-01')
       WHERE 
         ${partCondition} OR ${remarksCondition}
       GROUP BY 
@@ -103,7 +109,7 @@ export async function searchPartsInCerobiz(searchParams) {
       ORDER BY matchType, p.ProductCode
     `);
 
-    console.log(`Found ${result.recordset.length} results in Cerobiz (including compatible parts)`);
+    console.log(`Found ${result.recordset.length} results in Cerobiz (excluding opening stock from 2026-01-01)`);
 
     return result.recordset.map(row => ({
       id: row.ProductID,
@@ -126,7 +132,6 @@ export async function searchPartsInCerobiz(searchParams) {
       if (stockConfig) {
         try {
           await initializeStockDatabase(stockConfig);
-          // Don't retry here, let the user retry the search
         } catch (retryError) {
           console.error('Retry failed:', retryError);
         }
@@ -138,6 +143,7 @@ export async function searchPartsInCerobiz(searchParams) {
 }
 
 // Get stock information for a single part number (legacy support)
+// EXCLUDES VoucherID=20 (Opening Stock) from stock calculation
 export async function getStockForPartNumber(partNumber) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
@@ -166,16 +172,17 @@ export async function getStockForPartNumber(partNumber) {
       SELECT 
         p.ProductID,
         p.ProductCode,
-        ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+        ISNULL((
+          SELECT SUM(s2.StockIn) - SUM(s2.StockOut)
+          FROM dbo.inv_Stock s2
+          INNER JOIN dbo.inv_TransMaster tm2 ON s2.TransMasterID = tm2.TransMasterID
+          WHERE s2.ProductID = p.ProductID
+            AND NOT (tm2.VoucherID = 20 AND CAST(tm2.TransDate AS DATE) = '2026-01-01')
+        ), 0) AS StockQty
       FROM 
         dbo.inv_Product p
-      LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID
       WHERE 
         p.ProductCode = @partNumber
-      GROUP BY 
-        p.ProductID,
-        p.ProductCode
     `);
 
     if (result.recordset.length > 0) {
@@ -205,16 +212,17 @@ export async function getStockForPartNumber(partNumber) {
             SELECT 
               p.ProductID,
               p.ProductCode,
-              ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+              ISNULL((
+                SELECT SUM(s2.StockIn) - SUM(s2.StockOut)
+                FROM dbo.inv_Stock s2
+                INNER JOIN dbo.inv_TransMaster tm2 ON s2.TransMasterID = tm2.TransMasterID
+                WHERE s2.ProductID = p.ProductID
+                  AND NOT (tm2.VoucherID = 20 AND CAST(tm2.TransDate AS DATE) = '2026-01-01')
+              ), 0) AS StockQty
             FROM 
               dbo.inv_Product p
-            LEFT JOIN 
-              dbo.inv_Stock s ON p.ProductID = s.ProductID
             WHERE 
               p.ProductCode = @partNumber
-            GROUP BY 
-              p.ProductID,
-              p.ProductCode
           `);
 
           if (result.recordset.length > 0) {
@@ -234,6 +242,7 @@ export async function getStockForPartNumber(partNumber) {
 }
 
 // Get stock information for multiple part numbers (batch) - legacy support
+// EXCLUDES VoucherID=20 (Opening Stock) from stock calculation
 export async function getStockForPartNumbers(partNumbers) {
   const stockPool = getStockPool();
   
@@ -252,16 +261,17 @@ export async function getStockForPartNumbers(partNumbers) {
       SELECT 
         p.ProductID,
         p.ProductCode,
-        ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
+        ISNULL((
+          SELECT SUM(s2.StockIn) - SUM(s2.StockOut)
+          FROM dbo.inv_Stock s2
+          INNER JOIN dbo.inv_TransMaster tm2 ON s2.TransMasterID = tm2.TransMasterID
+          WHERE s2.ProductID = p.ProductID
+            AND NOT (tm2.VoucherID = 20 AND CAST(tm2.TransDate AS DATE) = '2026-01-01')
+        ), 0) AS StockQty
       FROM 
         dbo.inv_Product p
-      LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID
       WHERE 
         p.ProductCode IN (${partNumbersList})
-      GROUP BY 
-        p.ProductID,
-        p.ProductCode
     `);
 
     // Create a map of partNumber -> stockQty
@@ -281,6 +291,7 @@ export async function getStockForPartNumbers(partNumbers) {
 }
 
 // Get stock history for a specific product
+// EXCLUDES VoucherID=20 (Opening Stock) from history display
 export async function getStockHistory(productId, limit = 5) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
@@ -333,11 +344,12 @@ export async function getStockHistory(productId, limit = 5) {
         dbo.core_Voucher cv ON tm.VoucherID = cv.VoucherID
       WHERE 
         s.ProductID = @productId
+        AND NOT (tm.VoucherID = 20 AND CAST(tm.TransDate AS DATE) = '2026-01-01')
       ORDER BY 
         tm.TransDate DESC, s.TransMasterID DESC
     `);
 
-    console.log(`Found ${result.recordset.length} stock history records`);
+    console.log(`Found ${result.recordset.length} stock history records (excluding opening stock from 2026-01-01)`);
 
     return result.recordset.map(row => ({
       stockIn: row.StockIn || 0,
