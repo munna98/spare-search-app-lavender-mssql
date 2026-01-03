@@ -91,7 +91,7 @@ export async function searchPartsInCerobiz(searchParams) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID
+        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
       WHERE 
         ${partCondition} OR ${remarksCondition}
       GROUP BY 
@@ -170,7 +170,7 @@ export async function getStockForPartNumber(partNumber) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID
+        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
       WHERE 
         p.ProductCode = @partNumber
       GROUP BY 
@@ -209,7 +209,7 @@ export async function getStockForPartNumber(partNumber) {
             FROM 
               dbo.inv_Product p
             LEFT JOIN 
-              dbo.inv_Stock s ON p.ProductID = s.ProductID
+              dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
             WHERE 
               p.ProductCode = @partNumber
             GROUP BY 
@@ -256,7 +256,7 @@ export async function getStockForPartNumbers(partNumbers) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID
+        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
       WHERE 
         p.ProductCode IN (${partNumbersList})
       GROUP BY 
@@ -332,7 +332,7 @@ export async function getStockHistory(productId, limit = 5) {
       LEFT JOIN 
         dbo.core_Voucher cv ON tm.VoucherID = cv.VoucherID
       WHERE 
-        s.ProductID = @productId
+        s.ProductID = @productId AND s.PeriodID = 7
       ORDER BY 
         tm.TransDate DESC, s.TransMasterID DESC
     `);
