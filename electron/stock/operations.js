@@ -91,7 +91,7 @@ export async function searchPartsInCerobiz(searchParams) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
+        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID <> 7
       WHERE 
         ${partCondition} OR ${remarksCondition}
       GROUP BY 
@@ -137,8 +137,10 @@ export async function searchPartsInCerobiz(searchParams) {
   }
 }
 
-// Get stock information for a single part number (legacy support)
-export async function getStockForPartNumber(partNumber) {
+// Get stock quantities for part numbers (single or batch lookup)
+// Params: partNumbers (string or array), isSingleLookup (boolean)
+// Returns: { productId, stockQty } for single | { partNumber: { productId, stockQty } } for batch
+export async function getStockQuantities(partNumbers, isSingleLookup = false) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
 
@@ -150,104 +152,23 @@ export async function getStockForPartNumber(partNumber) {
         stockPool = getStockPool();
       } catch (error) {
         console.error('Failed to reconnect stock database:', error);
-        return { stockQty: null, error: 'Stock database not connected' };
+        return isSingleLookup ? { stockQty: null, error: 'Stock database not connected' } : {};
       }
     } else {
-      return { stockQty: null, error: 'Stock database not configured' };
+      return isSingleLookup ? { stockQty: null, error: 'Stock database not configured' } : {};
     }
   }
 
   try {
-    const request = stockPool.request();
-    request.timeout = 10000;
-    request.input('partNumber', sql.NVarChar, partNumber);
+    // Normalize input to array
+    const partsArray = Array.isArray(partNumbers) ? partNumbers : [partNumbers];
+    
+    // Build IN clause with proper escaping
+    const partNumbersList = partsArray.map(pn => `'${pn.replace(/'/g, "''")}'`).join(',');
 
-    const result = await request.query(`
-      SELECT 
-        p.ProductID,
-        p.ProductCode,
-        ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
-      FROM 
-        dbo.inv_Product p
-      LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
-      WHERE 
-        p.ProductCode = @partNumber
-      GROUP BY 
-        p.ProductID,
-        p.ProductCode
-    `);
-
-    if (result.recordset.length > 0) {
-      return {
-        stockQty: result.recordset[0].StockQty,
-        productId: result.recordset[0].ProductID
-      };
-    }
-
-    return { stockQty: null };
-  } catch (error) {
-    console.error('Error fetching stock:', error);
-
-    // Try to reconnect on error
-    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
-      console.log('Connection error detected, attempting to reconnect...');
-      if (stockConfig) {
-        try {
-          await initializeStockDatabase(stockConfig);
-          stockPool = getStockPool();
-          
-          // Retry the query once
-          const request = stockPool.request();
-          request.timeout = 10000;
-          request.input('partNumber', sql.NVarChar, partNumber);
-          const result = await request.query(`
-            SELECT 
-              p.ProductID,
-              p.ProductCode,
-              ISNULL(SUM(s.StockIn), 0) - ISNULL(SUM(s.StockOut), 0) AS StockQty
-            FROM 
-              dbo.inv_Product p
-            LEFT JOIN 
-              dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
-            WHERE 
-              p.ProductCode = @partNumber
-            GROUP BY 
-              p.ProductID,
-              p.ProductCode
-          `);
-
-          if (result.recordset.length > 0) {
-            return {
-              stockQty: result.recordset[0].StockQty,
-              productId: result.recordset[0].ProductID
-            };
-          }
-        } catch (retryError) {
-          console.error('Retry failed:', retryError);
-        }
-      }
-    }
-
-    return { stockQty: null, error: error.message };
-  }
-}
-
-// Get stock information for multiple part numbers (batch) - legacy support
-export async function getStockForPartNumbers(partNumbers) {
-  const stockPool = getStockPool();
-  
-  if (!stockPool || !stockPool.connected) {
-    return {};
-  }
-
-  try {
     const request = stockPool.request();
     request.timeout = 15000;
 
-    // Build IN clause
-    const partNumbersList = partNumbers.map(pn => `'${pn.replace(/'/g, "''")}'`).join(',');
-
     const result = await request.query(`
       SELECT 
         p.ProductID,
@@ -256,7 +177,7 @@ export async function getStockForPartNumbers(partNumbers) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
-        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID = 7
+        dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID <> 7
       WHERE 
         p.ProductCode IN (${partNumbersList})
       GROUP BY 
@@ -264,21 +185,45 @@ export async function getStockForPartNumbers(partNumbers) {
         p.ProductCode
     `);
 
-    // Create a map of partNumber -> stockQty
-    const stockMap = {};
-    result.recordset.forEach(row => {
-      stockMap[row.ProductCode] = {
-        stockQty: row.StockQty,
-        productId: row.ProductID
-      };
-    });
-
-    return stockMap;
+    // Return format based on lookup type
+    if (isSingleLookup) {
+      if (result.recordset.length > 0) {
+        return {
+          stockQty: result.recordset[0].StockQty,
+          productId: result.recordset[0].ProductID
+        };
+      }
+      return { stockQty: null };
+    } else {
+      // Batch lookup returns map
+      const stockMap = {};
+      result.recordset.forEach(row => {
+        stockMap[row.ProductCode] = {
+          stockQty: row.StockQty,
+          productId: row.ProductID
+        };
+      });
+      return stockMap;
+    }
   } catch (error) {
-    console.error('Error fetching stock batch:', error);
-    return {};
+    console.error('Error fetching stock quantities:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Reconnect failed:', retryError);
+        }
+      }
+    }
+
+    return isSingleLookup ? { stockQty: null, error: error.message } : {};
   }
 }
+
 
 // Get stock history for a specific product
 export async function getStockHistory(productId, limit = 5) {
@@ -332,7 +277,7 @@ export async function getStockHistory(productId, limit = 5) {
       LEFT JOIN 
         dbo.core_Voucher cv ON tm.VoucherID = cv.VoucherID
       WHERE 
-        s.ProductID = @productId AND s.PeriodID = 7
+        s.ProductID = @productId AND s.PeriodID <> 7
       ORDER BY 
         tm.TransDate DESC, s.TransMasterID DESC
     `);
