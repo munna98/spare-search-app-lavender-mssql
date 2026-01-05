@@ -54,50 +54,62 @@ export async function searchParts(searchParams) {
       break;
   }
 
-  let fileResults = [];
-  try {
-    const request = pool.request();
-    request.input('term', sql.NVarChar, paramValue);
+  // Run both searches in parallel for faster results
+  const searchLocalFiles = async () => {
+    try {
+      const request = pool.request();
+      request.input('term', sql.NVarChar, paramValue);
 
-    const result = await request.query(`
-      SELECT TOP 100 p.*, uf.brand 
-      FROM parts p
-      LEFT JOIN uploaded_files uf ON p.file_id = uf.id
-      WHERE ${partCondition}
-      ORDER BY p.part_number
-    `);
+      const result = await request.query(`
+        SELECT TOP 100 p.*, uf.brand 
+        FROM parts p
+        LEFT JOIN uploaded_files uf ON p.file_id = uf.id
+        WHERE ${partCondition}
+        ORDER BY p.part_number
+      `);
 
-    fileResults = result.recordset.map((row) => ({
-      id: row.id,
-      partNumber: row.part_number,
-      description: row.description,
-      price: row.price || 0,
-      price_vat: row.price_vat || 0,
-      brand: row.brand || 'Unknown',
-      source: 'files'
-    }));
-  } catch (error) {
-    console.error('Error searching in files:', error.message);
-    
-    if (error.code === 'ECONNCLOSED' || error.code === 'ENOTOPEN') {
-      const config = getCurrentConfig();
-      if (config) {
-        initializeDatabase(config).catch(err => {
-          console.error('Background reconnection failed:', err.message);
-        });
+      return result.recordset.map((row) => ({
+        id: row.id,
+        partNumber: row.part_number,
+        description: row.description,
+        price: row.price || 0,
+        price_vat: row.price_vat || 0,
+        brand: row.brand || 'Unknown',
+        source: 'files'
+      }));
+    } catch (error) {
+      console.error('Error searching in files:', error.message);
+      
+      if (error.code === 'ECONNCLOSED' || error.code === 'ENOTOPEN') {
+        const config = getCurrentConfig();
+        if (config) {
+          initializeDatabase(config).catch(err => {
+            console.error('Background reconnection failed:', err.message);
+          });
+        }
+      }
+      return [];
+    }
+  };
+
+  const searchCerobiz = async () => {
+    const stockPool = getStockPool();
+    if (stockPool && stockPool.connected) {
+      try {
+        return await searchPartsInCerobiz(searchParams);
+      } catch (error) {
+        console.error('Error searching in Cerobiz:', error.message);
+        return [];
       }
     }
-  }
+    return [];
+  };
 
-  let cerobizResults = [];
-  const stockPool = getStockPool();
-  if (stockPool && stockPool.connected) {
-    try {
-      cerobizResults = await searchPartsInCerobiz(searchParams);
-    } catch (error) {
-      console.error('Error searching in Cerobiz:', error.message);
-    }
-  }
+  // Execute both searches in parallel
+  const [fileResults, cerobizResults] = await Promise.all([
+    searchLocalFiles(),
+    searchCerobiz()
+  ]);
 
   return {
     cerobiz: cerobizResults,
