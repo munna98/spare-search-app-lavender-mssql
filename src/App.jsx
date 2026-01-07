@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CogIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
+import { ChartBarIcon, CogIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
 import PartSearchForm from "./components/PartSearchForm";
 import RecentSearches from "./components/RecentSearches";
 import SearchResults from "./components/SearchResults";
@@ -9,6 +9,7 @@ import UpdateNotification from "./components/UpdateNotification";
 import FileManager from "./components/FileManager";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import CustomerStatementReport from './components/CustomerStatementReport';
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -17,6 +18,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFileManager, setShowFileManager] = useState(false);
+  const [showCustomerStatement, setShowCustomerStatement] = useState(false);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [checkingConfig, setCheckingConfig] = useState(true);
@@ -28,7 +30,7 @@ export default function App() {
     const handleConfigStatus = (event, status) => {
       setDbConfigured(status.configured);
       setDbConnected(status.connected);
-      
+
       // Only show error toast if there's an actual error after initial setup
       if (status.configured && !status.connected && status.error && !checkingConfig) {
         toast.error(`Database connection issue: ${status.error}`);
@@ -73,20 +75,20 @@ export default function App() {
 
     setQuery(partNumber);
     setLoading(true);
-    
+
     try {
       if (!recent.includes(partNumber) && partNumber.trim()) {
         setRecent([partNumber, ...recent.slice(0, 4)]);
       }
 
-      const response = await window.electronAPI.searchParts({ 
+      const response = await window.electronAPI.searchParts({
         term: partNumber,
         mode: searchMode
       });
 
       if (response.success) {
         setResults(response.results);
-        
+
         const totalResults = (response.results.cerobiz?.length || 0) + (response.results.files?.length || 0);
         // Removed the "No results found" toast
       } else {
@@ -116,8 +118,8 @@ export default function App() {
     return (
       <>
         <ToastContainer position="top-right" autoClose={3000} />
-        <DatabaseSetupWizard 
-          onComplete={handleSetupComplete} 
+        <DatabaseSetupWizard
+          onComplete={handleSetupComplete}
           isReconfigure={showReconfigureWizard}
           onClose={() => setShowReconfigureWizard(false)}
         />
@@ -130,10 +132,20 @@ export default function App() {
       <>
         <ToastContainer position="top-right" autoClose={3000} />
         <UpdateNotification />
-        <Settings 
-          onBack={() => setShowSettings(false)} 
-          onReconfigure={handleReconfigure} 
+        <Settings
+          onBack={() => setShowSettings(false)}
+          onReconfigure={handleReconfigure}
         />
+      </>
+    );
+  }
+
+  if (showCustomerStatement) {
+    return (
+      <>
+        <ToastContainer position="top-right" autoClose={3000} />
+        <UpdateNotification />
+        <CustomerStatementReport onBack={() => setShowCustomerStatement(false)} />
       </>
     );
   }
@@ -151,29 +163,34 @@ export default function App() {
   return (
     <div className="min-h-screen p-32 pt-0 bg-gray-50">
       <UpdateNotification />
-      
+
       <div className="p-6 max-w-6xl mx-auto">
         <ToastContainer position="top-right" autoClose={3000} />
-        
+
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
 
           <div className="flex gap-3">
-            <button 
+            <button
+              onClick={() => setShowCustomerStatement(true)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
+              title="Customer Statement Report"
+            >
+              <ChartBarIcon className="h-5 w-5 text-gray-600" />
+            </button>
+            <button
               onClick={() => setShowFileManager(true)}
               className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
               title="Manage uploaded files"
             >
               <FolderOpenIcon className="h-5 w-5 text-gray-600" />
-              <span className="text-gray-700">Manage Files</span>
             </button>
 
-            <button 
+            <button
               onClick={() => setShowSettings(true)}
               className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
             >
               <CogIcon className="h-5 w-5 text-gray-600" />
-              <span className="text-gray-700">Settings</span>
             </button>
           </div>
         </div>
@@ -183,7 +200,7 @@ export default function App() {
           setQuery(term);
           handleSearch(term);
         }} />
-        
+
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>

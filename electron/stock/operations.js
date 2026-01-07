@@ -162,7 +162,7 @@ export async function getStockQuantities(partNumbers, isSingleLookup = false) {
   try {
     // Normalize input to array
     const partsArray = Array.isArray(partNumbers) ? partNumbers : [partNumbers];
-    
+
     // Build IN clause with proper escaping
     const partNumbersList = partsArray.map(pn => `'${pn.replace(/'/g, "''")}'`).join(',');
 
@@ -313,5 +313,176 @@ export async function getStockHistory(productId, limit = 5) {
     }
 
     return [];
+  }
+}
+
+
+// Get all customer ledgers for dropdown
+export async function getCustomerLedgers() {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        return [];
+      }
+    } else {
+      console.log('Stock database not configured');
+      return [];
+    }
+  }
+
+  try {
+    console.log('Fetching customer ledgers...');
+
+    const request = stockPool.request();
+    request.timeout = 15000;
+
+    const result = await request.query(`
+      SELECT 
+        LedgerID,
+        LedgerName
+      FROM 
+        dbo.acc_Ledger
+      WHERE
+        ParentID = 34
+        AND LedgerName IS NOT NULL
+      ORDER BY 
+        LedgerName
+    `);
+
+    console.log(`Found ${result.recordset.length} customer ledgers`);
+
+    return result.recordset.map(row => ({
+      ledgerId: row.LedgerID,
+      ledgerName: row.LedgerName
+    }));
+
+  } catch (error) {
+    console.error('Error fetching customer ledgers:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    return [];
+  }
+}
+
+
+// Get customer statement report (Sales and Sales Returns)
+export async function getCustomerStatement(params) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    const { ledgerId, startDate, endDate } = params;
+
+    console.log(`Fetching customer statement for LedgerID: ${ledgerId}, Date range: ${startDate} to ${endDate}`);
+
+    const request = stockPool.request();
+    request.timeout = 30000;
+    request.input('ledgerId', sql.Int, ledgerId);
+    request.input('startDate', sql.Date, startDate);
+    request.input('endDate', sql.Date, endDate);
+
+    const result = await request.query(`
+      SELECT 
+        ROW_NUMBER() OVER (ORDER BY Date, TransMasterID) AS SNo,
+        Date,
+        Particulars,
+        VType,
+        VNo,
+        Debit,
+        Credit
+      FROM (
+        SELECT 
+          tm.TransMasterID,
+          tm.TransDate AS Date,
+          tm.CNarration AS Particulars,
+          CASE 
+            WHEN tm.VoucherID = 9 THEN 'Sales'
+            WHEN tm.VoucherID = 11 THEN 'Sales Return'
+            ELSE 'Unknown'
+          END AS VType,
+          tm.VoucherNo AS VNo,
+          SUM(td.Debit) AS Debit,
+          SUM(td.Credit) AS Credit
+        FROM 
+          dbo.acc_TransMaster tm
+        INNER JOIN 
+          dbo.acc_TransDetails td ON tm.TransMasterID = td.TransMasterID
+        WHERE 
+          td.LedgerID = @ledgerId
+          AND (tm.VoucherID = 9 OR tm.VoucherID = 11)
+          AND tm.TransDate BETWEEN @startDate AND @endDate
+        GROUP BY 
+          tm.TransMasterID,
+          tm.TransDate,
+          tm.CNarration,
+          tm.VoucherNo,
+          tm.VoucherID
+      ) AS GroupedTransactions
+      ORDER BY 
+        Date, TransMasterID
+    `);
+
+    console.log(`Found ${result.recordset.length} transactions for customer statement`);
+
+    return result.recordset.map(row => ({
+      sNo: row.SNo,
+      date: row.Date,
+      particulars: row.Particulars || '',
+      vType: row.VType,
+      vNo: row.VNo || '',
+      debit: row.Debit || 0,
+      credit: row.Credit || 0
+    }));
+
+  } catch (error) {
+    console.error('Error fetching customer statement:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    throw error;
   }
 }
