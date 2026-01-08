@@ -422,6 +422,7 @@ export async function getCustomerStatement(params) {
         Particulars,
         VType,
         VNo,
+        RelatedVNo,
         Debit,
         Credit
       FROM (
@@ -435,12 +436,17 @@ export async function getCustomerStatement(params) {
             ELSE 'Unknown'
           END AS VType,
           tm.VoucherNo AS VNo,
+          MAX(itm_orig.VoucherNo) AS RelatedVNo,
           SUM(td.Debit) AS Debit,
           SUM(td.Credit) AS Credit
         FROM 
           dbo.acc_TransMaster tm
         INNER JOIN 
           dbo.acc_TransDetails td ON tm.TransMasterID = td.TransMasterID
+        LEFT JOIN 
+          dbo.inv_TransMaster itm ON itm.VoucherNo = tm.VoucherNo AND itm.VoucherID = tm.VoucherID
+        LEFT JOIN 
+          dbo.inv_TransMaster itm_orig ON itm.RTransID = itm_orig.TransMasterID
         WHERE 
           td.LedgerID = @ledgerId
           AND (tm.VoucherID = 9 OR tm.VoucherID = 11)
@@ -464,6 +470,7 @@ export async function getCustomerStatement(params) {
       particulars: row.Particulars || '',
       vType: row.VType,
       vNo: row.VNo || '',
+      relatedVNo: row.RelatedVNo || '',
       debit: row.Debit || 0,
       credit: row.Credit || 0
     }));

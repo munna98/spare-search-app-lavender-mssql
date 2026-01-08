@@ -84,8 +84,7 @@ export default function CustomerStatementReport({ onBack }) {
     };
 
     const handlePrint = () => {
-        // window.print();
-        toast.info('Print functionality coming soon');
+        window.print();
     };
 
     const calculateTotals = () => {
@@ -266,7 +265,7 @@ export default function CustomerStatementReport({ onBack }) {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900">
-                                                {transaction.vNo}
+                                                {transaction.vNo} {transaction.relatedVNo ? `(${transaction.relatedVNo})` : ''}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
                                                 {transaction.debit > 0 ? formatCurrency(transaction.debit) : '-'}
