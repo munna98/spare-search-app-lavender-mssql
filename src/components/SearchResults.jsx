@@ -95,7 +95,7 @@ export default function SearchResults({ results, query }) {
     const printItem = {
       ...item,
       price: source === 'cerobiz' ? item.cost : item.price,
-      brand: source === 'cerobiz' ? 'Cerobiz' : item.brand
+      brand: source === 'cerobiz' ? (item.brandName || 'Cerobiz') : item.brand
     };
     setItemsToPrint([printItem]);
     setShowPrintDialog(true);
@@ -117,7 +117,7 @@ export default function SearchResults({ results, query }) {
           items.push({
             ...item,
             price: item.cost,
-            brand: 'Cerobiz'
+            brand: item.brandName || 'Cerobiz'
           });
         }
       } else if (itemId.startsWith('files-')) {
@@ -246,15 +246,22 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-green-100 text-gray-700">{row.description}</td>
                     <td className="p-3 border-b border-green-100">
-                      <button
-                        onClick={() => handleStockClick(row.partNumber, row.productId, row.stockQty)}
-                        className={`text-sm flex items-center font-semibold px-2 py-1 rounded hover:bg-green-200 transition-colors ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        title="Click to view stock history"
-                      >
-                        <CubeIcon className="h-4 w-4 mr-1" />
-                        {row.stockQty}
-                      </button>
+                      <div className="flex flex-col items-center leading-none">
+                        <button
+                          onClick={() => handleStockClick(row.partNumber, row.productId, row.stockQty)}
+                          className={`text-sm flex items-center font-semibold px-2 py-0.5 rounded hover:bg-green-200 transition-colors ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}
+                          title="Click to view stock history"
+                        >
+                          <CubeIcon className="h-4 w-4 mr-1" />
+                          {row.stockQty}
+                        </button>
+                        {row.brandName && (
+                          <span className="text-[10px] text-gray-500 mt-0.5">
+                            {row.brandName}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3 border-b border-green-100">
                       <button

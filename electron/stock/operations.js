@@ -82,6 +82,7 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductName AS description,
         p.LastCost AS cost,
         p.Remarks,
+        b.BrandName,
         CASE 
           WHEN ${partCondition} THEN 0
           WHEN ${remarksCondition} THEN 1
@@ -91,6 +92,8 @@ export async function searchPartsInCerobiz(searchParams) {
       FROM 
         dbo.inv_Product p
       LEFT JOIN 
+        dbo.inv_Brand b ON p.BrandID = b.BrandID
+      LEFT JOIN 
         dbo.inv_Stock s ON p.ProductID = s.ProductID AND s.PeriodID <> 7
       WHERE 
         ${partCondition} OR ${remarksCondition}
@@ -99,7 +102,8 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductCode,
         p.ProductName,
         p.LastCost,
-        p.Remarks
+        p.Remarks,
+        b.BrandName
       ORDER BY matchType, p.ProductCode
     `);
 
@@ -110,6 +114,7 @@ export async function searchPartsInCerobiz(searchParams) {
       productId: row.ProductID,
       partNumber: row.partNumber,
       description: row.description,
+      brandName: row.BrandName,
       cost: row.cost || 0,
       stockQty: row.stockQty,
       source: 'cerobiz',
