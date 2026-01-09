@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 export default function CustomerStatementReport({ onBack }) {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState('');
+    const [selectedCustomerName, setSelectedCustomerName] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [transactions, setTransactions] = useState([]);
@@ -131,7 +132,6 @@ export default function CustomerStatementReport({ onBack }) {
     };
 
     const { totalDebit, totalCredit } = calculateTotals();
-    const selectedCustomerName = customers.find(c => c.ledgerId === parseInt(selectedCustomer))?.ledgerName || '';
 
     return (
         <div className="p-6 max-w-4xl mx-auto">
@@ -173,7 +173,11 @@ export default function CustomerStatementReport({ onBack }) {
                                 [customers]
                             )}
                             value={selectedCustomer}
-                            onChange={(val) => setSelectedCustomer(val)}
+                            onChange={(val) => {
+                                setSelectedCustomer(val);
+                                const customer = customers.find(c => c.ledgerId === val);
+                                setSelectedCustomerName(customer ? customer.ledgerName : '');
+                            }}
                             placeholder={loadingCustomers ? 'Loading...' : 'Select Customer'}
                             loading={loadingCustomers}
                             disabled={loadingCustomers}
@@ -249,12 +253,12 @@ export default function CustomerStatementReport({ onBack }) {
             {/* Report Header for Print */}
             {(activeTab === 'statement' ? transactions.length > 0 : pendingInvoices.length > 0) && (
                 <div className="hidden print:block mb-6">
-                    <h1 className="text-2xl font-bold text-center mb-2">
+                    <h1 className="text-2xl font-bold text-center mb-4">
                         {activeTab === 'statement' ? 'Customer Statement Report' : 'Pending Invoices Report'}
                     </h1>
-                    <div className="text-center text-sm mb-4">
-                        <p><strong>Customer:</strong> {selectedCustomerName}</p>
-                        <p><strong>Period:</strong> {formatDate(startDate)} to {formatDate(endDate)}</p>
+                    <div className="text-center mb-4">
+                        <p className="text-lg font-bold mb-2">Customer: {selectedCustomerName}</p>
+                        <p className="text-sm">Period: {formatDate(startDate)} to {formatDate(endDate)}</p>
                     </div>
                 </div>
             )}
@@ -326,29 +330,35 @@ export default function CustomerStatementReport({ onBack }) {
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-gray-100 font-bold">
-                                    <tr>
-                                        <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            Total:
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(totalDebit)}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(totalCredit)}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            Balance:
-                                        </td>
-                                        <td colSpan="2" className={`px-4 py-3 text-sm text-right ${totalDebit - totalCredit >= 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                            {formatCurrency(Math.abs(totalDebit - totalCredit))} {totalDebit - totalCredit >= 0 ? 'Dr' : 'Cr'}
-                                        </td>
-                                    </tr>
-                                </tfoot>
                             </table>
+                        </div>
+
+                        {/* Totals Section - Outside table to appear only on last page */}
+                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                            <div className="flex justify-end px-4 py-3">
+                                <div className="flex items-center gap-8">
+                                    <div className="text-sm text-gray-900">
+                                        Total:
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(totalDebit)}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(totalCredit)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex justify-end px-4 py-3 border-t border-gray-200">
+                                <div className="flex items-center gap-8">
+                                    <div className="text-sm text-gray-900">
+                                        Balance:
+                                    </div>
+                                    <div className={`text-sm text-right min-w-[208px] ${totalDebit - totalCredit >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                        {formatCurrency(Math.abs(totalDebit - totalCredit))} {totalDebit - totalCredit >= 0 ? 'Dr' : 'Cr'}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -408,23 +418,27 @@ export default function CustomerStatementReport({ onBack }) {
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-gray-100 font-bold">
-                                    <tr>
-                                        <td colSpan="3" className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            Total Pending:
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0))}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.paid, 0))}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.balance, 0))}
-                                        </td>
-                                    </tr>
-                                </tfoot>
                             </table>
+                        </div>
+
+                        {/* Totals Section - Outside table to appear only on last page */}
+                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                            <div className="flex justify-end px-4 py-3">
+                                <div className="flex items-center gap-8">
+                                    <div className="text-sm text-gray-900">
+                                        Total Pending:
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0))}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.paid, 0))}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.balance, 0))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : (
