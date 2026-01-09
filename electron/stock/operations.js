@@ -533,7 +533,12 @@ export async function getPendingInvoices(params) {
         itm.GrandTotal AS amount,
         ISNULL(SUM(itp.Amount), 0) AS paid,
         (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)) AS returned,
-        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)) AS balance
+        (SELECT ISNULL(SUM(atd.Discount), 0) FROM acc_TransDetails atd WHERE atd.TransID = itm.TransMasterID) AS discount,
+        itm.GrandTotal 
+          - ISNULL(SUM(itp.Amount), 0) 
+          - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)) 
+          - (SELECT ISNULL(SUM(atd.Discount), 0) FROM acc_TransDetails atd WHERE atd.TransID = itm.TransMasterID)
+        AS balance
       FROM 
         inv_TransMaster itm
       LEFT JOIN 
@@ -542,13 +547,19 @@ export async function getPendingInvoices(params) {
         itm.CashPartyID = @ledgerId
         AND itm.VoucherID IN (9, 13)  -- 9=Sales, 13=Estimate
         AND itm.TransDate BETWEEN @startDate AND @asOnDate
+        AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_BillwiseSettle WHERE LedgerID = @ledgerId)
+        AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
       GROUP BY 
         itm.TransMasterID,
         itm.VoucherNo,
         itm.TransDate,
         itm.GrandTotal
       HAVING 
-        (itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID))) > 1
+        (itm.GrandTotal 
+          - ISNULL(SUM(itp.Amount), 0) 
+          - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID))
+          - (SELECT ISNULL(SUM(atd.Discount), 0) FROM acc_TransDetails atd WHERE atd.TransID = itm.TransMasterID)
+        ) > 0
       ORDER BY 
         itm.TransDate ASC
     `);
