@@ -8,8 +8,10 @@ export default function CustomerStatementReport({ onBack }) {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [transactions, setTransactions] = useState([]);
+    const [pendingInvoices, setPendingInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [loadingCustomers, setLoadingCustomers] = useState(true);
+    const [activeTab, setActiveTab] = useState('statement'); // 'statement' or 'pending'
 
     // Load customers on component mount
     useEffect(() => {
@@ -58,26 +60,50 @@ export default function CustomerStatementReport({ onBack }) {
 
         setLoading(true);
         try {
-            const response = await window.electronAPI.getCustomerStatement({
+            // Fetch Customer Statement
+            const statementResponse = await window.electronAPI.getCustomerStatement({
                 ledgerId: parseInt(selectedCustomer),
                 startDate: startDate,
                 endDate: endDate
             });
 
-            if (response.success) {
-                setTransactions(response.transactions);
-                if (response.transactions.length === 0) {
-                    toast.info('No transactions found for the selected date range');
-                } else {
-                    toast.success(response.message);
+            if (statementResponse.success) {
+                setTransactions(statementResponse.transactions);
+                if (statementResponse.transactions.length === 0) {
+                    toast.info('No statement transactions found');
                 }
             } else {
-                toast.error(`Failed to generate report: ${response.message}`);
+                toast.error(`Failed to generate statement: ${statementResponse.message}`);
                 setTransactions([]);
+            }
+
+            // Fetch Pending Invoices
+            const pendingResponse = await window.electronAPI.getPendingInvoices({
+                ledgerId: parseInt(selectedCustomer),
+                startDate: startDate,
+                endDate: endDate
+            });
+
+            if (pendingResponse.success) {
+                setPendingInvoices(pendingResponse.invoices);
+                if (pendingResponse.invoices.length === 0) {
+                    // Only toast if specifically looking for pending invoices
+                    if (activeTab === 'pending') {
+                        toast.info('No pending invoices found');
+                    }
+                }
+            } else {
+                toast.error(`Failed to fetch pending invoices: ${pendingResponse.message}`);
+                setPendingInvoices([]);
+            }
+
+            if (statementResponse.success || pendingResponse.success) {
+                toast.success('Report updated successfully');
             }
         } catch (error) {
             toast.error(`Error generating report: ${error.message}`);
             setTransactions([]);
+            setPendingInvoices([]);
         } finally {
             setLoading(false);
         }
@@ -107,10 +133,9 @@ export default function CustomerStatementReport({ onBack }) {
     const selectedCustomerName = customers.find(c => c.ledgerId === parseInt(selectedCustomer))?.ledgerName || '';
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
+            <div className="p-6 max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="flex justify-between items-center mb-6 print:hidden">
+                <div className="flex justify-between items-center mb-4 print:hidden">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={onBack}
@@ -122,7 +147,7 @@ export default function CustomerStatementReport({ onBack }) {
                         <h1 className="text-3xl font-bold text-gray-900">Customer Statement Report</h1>
                     </div>
 
-                    {transactions.length > 0 && (
+                    {(transactions.length > 0 || pendingInvoices.length > 0) && (
                         <button
                             onClick={handlePrint}
                             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -134,9 +159,7 @@ export default function CustomerStatementReport({ onBack }) {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-lg shadow-md p-6 mb-6 print:hidden">
-                    <h2 className="text-lg font-semibold mb-4 text-gray-800">Report Filters</h2>
-
+                <div className="bg-white rounded-lg shadow-md p-6 mb-2 print:hidden">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Customer Dropdown */}
                         <div>
@@ -199,10 +222,34 @@ export default function CustomerStatementReport({ onBack }) {
                     </div>
                 </div>
 
+                {/* Tabs */}
+                <div className="flex border-b border-gray-200 mb-6 print:hidden">
+                    <button
+                        className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'statement'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        onClick={() => setActiveTab('statement')}
+                    >
+                        Customer Statement
+                    </button>
+                    <button
+                        className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'pending'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        onClick={() => setActiveTab('pending')}
+                    >
+                        Pending Invoices
+                    </button>
+                </div>
+
                 {/* Report Header for Print */}
-                {transactions.length > 0 && (
+                {(activeTab === 'statement' ? transactions.length > 0 : pendingInvoices.length > 0) && (
                     <div className="hidden print:block mb-6">
-                        <h1 className="text-2xl font-bold text-center mb-2">Customer Statement Report</h1>
+                        <h1 className="text-2xl font-bold text-center mb-2">
+                            {activeTab === 'statement' ? 'Customer Statement Report' : 'Pending Invoices Report'}
+                        </h1>
                         <div className="text-center text-sm mb-4">
                             <p><strong>Customer:</strong> {selectedCustomerName}</p>
                             <p><strong>Period:</strong> {formatDate(startDate)} to {formatDate(endDate)}</p>
@@ -215,99 +262,176 @@ export default function CustomerStatementReport({ onBack }) {
                     <div className="flex justify-center py-12">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     </div>
-                ) : transactions.length > 0 ? (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            S.No
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Date
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Particulars
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            V Type
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            V No
-                                        </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Debit
-                                        </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Credit
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {transactions.map((transaction) => (
-                                        <tr key={transaction.sNo} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {transaction.sNo}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {formatDate(transaction.date)}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {transaction.particulars}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.vType === 'Sales'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                    {transaction.vType}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {transaction.vNo} {transaction.relatedVNo ? `(${transaction.relatedVNo})` : ''}
+                ) : activeTab === 'statement' ? (
+                    transactions.length > 0 ? (
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                S.No
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Date
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Particulars
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                V Type
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                V No
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Debit
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Credit
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {transactions.map((transaction) => (
+                                            <tr key={transaction.sNo} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {transaction.sNo}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {formatDate(transaction.date)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {transaction.particulars}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.vType === 'Sales'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                        {transaction.vType}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {transaction.vNo} {transaction.relatedVNo ? `(${transaction.relatedVNo})` : ''}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {transaction.debit > 0 ? formatCurrency(transaction.debit) : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {transaction.credit > 0 ? formatCurrency(transaction.credit) : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-gray-100 font-bold">
+                                        <tr>
+                                            <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                Total:
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                                {transaction.debit > 0 ? formatCurrency(transaction.debit) : '-'}
+                                                {formatCurrency(totalDebit)}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                                {transaction.credit > 0 ? formatCurrency(transaction.credit) : '-'}
+                                                {formatCurrency(totalCredit)}
                                             </td>
                                         </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot className="bg-gray-100 font-bold">
-                                    <tr>
-                                        <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            Total:
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(totalDebit)}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            {formatCurrency(totalCredit)}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
-                                            Balance:
-                                        </td>
-                                        <td colSpan="2" className={`px-4 py-3 text-sm text-right ${totalDebit - totalCredit >= 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                            {formatCurrency(Math.abs(totalDebit - totalCredit))} {totalDebit - totalCredit >= 0 ? 'Dr' : 'Cr'}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                        <tr>
+                                            <td colSpan="5" className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                Balance:
+                                            </td>
+                                            <td colSpan="2" className={`px-4 py-3 text-sm text-right ${totalDebit - totalCredit >= 0 ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                {formatCurrency(Math.abs(totalDebit - totalCredit))} {totalDebit - totalCredit >= 0 ? 'Dr' : 'Cr'}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                            <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500 text-lg">Select a customer and date range to generate the statement</p>
+                        </div>
+                    )
                 ) : (
-                    <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                        <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-500 text-lg">Select a customer and date range to generate the report</p>
-                    </div>
+                    pendingInvoices.length > 0 ? (
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                S No
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Invoice No
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Date
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Amount
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Paid
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Balance
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {pendingInvoices.map((invoice, index) => (
+                                            <tr key={invoice.transMasterId} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {invoice.invoiceNo}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {formatDate(invoice.invoiceDate)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {formatCurrency(invoice.amount)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {formatCurrency(invoice.paid)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm font-bold text-red-600 text-right">
+                                                    {formatCurrency(invoice.balance)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-gray-100 font-bold">
+                                        <tr>
+                                            <td colSpan="3" className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                Total Pending:
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.amount, 0))}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.paid, 0))}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.balance, 0))}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                            <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500 text-lg">Select a customer and date range to show pending invoices</p>
+                        </div>
+                    )
                 )}
-            </div>
 
             <style jsx>{`
         @media print {

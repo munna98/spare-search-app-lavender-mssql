@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Test stock connection
@@ -143,6 +143,36 @@ export function registerStockHandlers() {
         success: false,
         message: error.message,
         transactions: []
+      };
+    }
+  });
+
+  // Get pending invoices
+  ipcMain.handle('stock:getPendingInvoices', async (event, params) => {
+    try {
+      const { ledgerId, startDate, endDate } = params;
+
+      if (!ledgerId) {
+        return {
+          success: false,
+          message: 'Ledger ID is required',
+          invoices: []
+        };
+      }
+
+      const invoices = await getPendingInvoices(params);
+
+      return {
+        success: true,
+        invoices,
+        message: `Retrieved ${invoices.length} pending invoice(s)`
+      };
+    } catch (error) {
+      console.error('Pending invoices handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        invoices: []
       };
     }
   });

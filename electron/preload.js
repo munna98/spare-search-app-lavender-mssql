@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getStockHistory: (params) => ipcRenderer.invoke('stock:getHistory', params),
   getCustomerLedgers: () => ipcRenderer.invoke('stock:getCustomerLedgers'),
   getCustomerStatement: (params) => ipcRenderer.invoke('stock:getCustomerStatement', params),
+  getPendingInvoices: (params) => ipcRenderer.invoke('stock:getPendingInvoices', params),
 
   // File operations
   openFile: () => ipcRenderer.invoke('dialog:openFile'),

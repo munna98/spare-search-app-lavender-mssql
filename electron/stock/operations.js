@@ -493,3 +493,91 @@ export async function getCustomerStatement(params) {
     throw error;
   }
 }
+
+// Get pending invoices for a customer
+export async function getPendingInvoices(params) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    const { ledgerId, startDate, endDate } = params;
+
+    console.log(`Fetching pending invoices for LedgerID: ${ledgerId}, Date range: ${startDate} to ${endDate}`);
+
+    const request = stockPool.request();
+    request.timeout = 30000;
+    request.input('ledgerId', sql.Int, ledgerId);
+    request.input('startDate', sql.Date, startDate);
+    request.input('asOnDate', sql.Date, endDate);
+
+    const result = await request.query(`
+      SELECT 
+        itm.TransMasterID,
+        itm.VoucherNo AS invoiceNo,
+        itm.TransDate AS invoiceDate,
+        itm.GrandTotal AS amount,
+        ISNULL(SUM(itp.Amount), 0) AS paid,
+        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) AS balance
+      FROM 
+        inv_TransMaster itm
+      LEFT JOIN 
+        inv_TransPayment itp ON itm.TransMasterID = itp.TransMasterID
+      WHERE 
+        itm.CashPartyID = @ledgerId
+        AND itm.VoucherID IN (9, 13)  -- 9=Sales, 13=Estimate
+        AND itm.TransDate BETWEEN @startDate AND @asOnDate
+      GROUP BY 
+        itm.TransMasterID,
+        itm.VoucherNo,
+        itm.TransDate,
+        itm.GrandTotal
+      HAVING 
+        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) > 0  -- Balance > 0
+      ORDER BY 
+        itm.TransDate ASC
+    `);
+
+    console.log(`Found ${result.recordset.length} pending invoices`);
+
+    return result.recordset.map(row => ({
+      transMasterId: row.TransMasterID,
+      invoiceNo: row.invoiceNo,
+      invoiceDate: row.invoiceDate,
+      amount: row.amount || 0,
+      paid: row.paid || 0,
+      balance: row.balance || 0
+    }));
+
+  } catch (error) {
+    console.error('Error fetching pending invoices:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    throw error;
+  }
+}
