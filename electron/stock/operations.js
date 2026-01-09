@@ -532,7 +532,8 @@ export async function getPendingInvoices(params) {
         itm.TransDate AS invoiceDate,
         itm.GrandTotal AS amount,
         ISNULL(SUM(itp.Amount), 0) AS paid,
-        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) AS balance
+        (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)) AS returned,
+        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)) AS balance
       FROM 
         inv_TransMaster itm
       LEFT JOIN 
@@ -547,7 +548,7 @@ export async function getPendingInvoices(params) {
         itm.TransDate,
         itm.GrandTotal
       HAVING 
-        itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) > 0  -- Balance > 0
+        (itm.GrandTotal - ISNULL(SUM(itp.Amount), 0) - (SELECT ISNULL(SUM(rt.GrandTotal), 0) FROM inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID))) > 1
       ORDER BY 
         itm.TransDate ASC
     `);
