@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeftIcon, DocumentTextIcon, PlayIcon } from '@heroicons/react/24/outline';
 import SearchableSelect from './SearchableSelect';
 import { toast } from 'react-toastify';
+import printHeader from '../assets/print-header.png';
 
 export default function CustomerStatementReport({ onBack }) {
     const [customers, setCustomers] = useState([]);
@@ -255,7 +256,7 @@ export default function CustomerStatementReport({ onBack }) {
                 <div className="hidden print:block mb-6">
                     {/* Main Banner Image */}
                     <img
-                        src="/print-header.png"
+                        src={printHeader}
                         alt="Header"
                         className="w-full h-auto mb-4"
                         onError={(e) => e.target.style.display = 'none'}
