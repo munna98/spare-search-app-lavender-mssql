@@ -134,7 +134,7 @@ export default function CustomerStatementReport({ onBack }) {
     const { totalDebit, totalCredit } = calculateTotals();
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="p-6 max-w-4xl mx-auto print:p-0 print:max-w-none">
             {/* Header */}
             <div className="flex justify-between items-center mb-4 print:hidden">
                 <div className="flex items-center gap-4">
@@ -253,12 +253,28 @@ export default function CustomerStatementReport({ onBack }) {
             {/* Report Header for Print */}
             {(activeTab === 'statement' ? transactions.length > 0 : pendingInvoices.length > 0) && (
                 <div className="hidden print:block mb-6">
-                    <h1 className="text-2xl font-bold text-center mb-4">
-                        {activeTab === 'statement' ? 'Customer Statement Report' : 'Pending Invoices Report'}
-                    </h1>
-                    <div className="text-center mb-4">
-                        <p className="text-lg font-bold mb-2">Customer: {selectedCustomerName}</p>
-                        <p className="text-sm">Period: {formatDate(startDate)} to {formatDate(endDate)}</p>
+                    {/* Main Banner Image */}
+                    <img
+                        src="/print-header.png"
+                        alt="Header"
+                        className="w-full h-auto mb-4"
+                        onError={(e) => e.target.style.display = 'none'}
+                    />
+
+                    {/* Report Information Section */}
+                    <div className="flex justify-between items-end mb-4 border-b-2 border-gray-800 pb-2">
+                        <div className="text-left">
+                            <p className="text-sm text-gray-600 font-medium">Prepared for:</p>
+                            <p className="text-xl font-bold uppercase tracking-wide">{selectedCustomerName}</p>
+                        </div>
+                        <div className="text-right">
+                            <h2 className="text-xl font-bold mb-1">
+                                {activeTab === 'statement' ? 'CUSTOMER STATEMENT' : 'PENDING INVOICES'}
+                            </h2>
+                            <p className="text-sm font-medium">
+                                <span className="text-gray-600">Period:</span> {formatDate(startDate)} - {formatDate(endDate)}
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -270,30 +286,27 @@ export default function CustomerStatementReport({ onBack }) {
                 </div>
             ) : activeTab === 'statement' ? (
                 transactions.length > 0 ? (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-gray-50 print:bg-gray-100">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             S.No
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Date
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Particulars
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            V Type
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             V No
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Debit
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Credit
                                         </th>
                                     </tr>
@@ -311,14 +324,6 @@ export default function CustomerStatementReport({ onBack }) {
                                                 {transaction.particulars}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.vType === 'Sales'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                    {transaction.vType}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
                                                 {transaction.vNo} {transaction.relatedVNo ? `(${transaction.relatedVNo})` : ''}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
@@ -334,7 +339,7 @@ export default function CustomerStatementReport({ onBack }) {
                         </div>
 
                         {/* Totals Section - Outside table to appear only on last page */}
-                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300 print:bg-transparent">
                             <div className="flex justify-end px-4 py-3">
                                 <div className="flex items-center gap-8">
                                     <div className="text-sm text-gray-900">
@@ -348,12 +353,12 @@ export default function CustomerStatementReport({ onBack }) {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex justify-end px-4 py-3 border-t border-gray-200">
+                            <div className="flex justify-end px-4 py-3 border-t border-gray-200 print:border-gray-300">
                                 <div className="flex items-center gap-8">
                                     <div className="text-sm text-gray-900">
                                         Balance:
                                     </div>
-                                    <div className={`text-sm text-right min-w-[208px] ${totalDebit - totalCredit >= 0 ? 'text-green-600' : 'text-red-600'
+                                    <div className={`text-sm text-right min-w-[208px] ${totalDebit - totalCredit >= 0 ? 'text-green-600 print:text-gray-900' : 'text-red-600 print:text-gray-900'
                                         }`}>
                                         {formatCurrency(Math.abs(totalDebit - totalCredit))} {totalDebit - totalCredit >= 0 ? 'Dr' : 'Cr'}
                                     </div>
@@ -362,34 +367,34 @@ export default function CustomerStatementReport({ onBack }) {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                    <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
                         <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                         <p className="text-gray-500 text-lg">Select a customer and date range to generate the statement</p>
                     </div>
                 )
             ) : (
                 pendingInvoices.length > 0 ? (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-gray-50 print:bg-gray-100">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             S No
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Invoice No
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Date
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Amount
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Paid
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Balance
                                         </th>
                                     </tr>
@@ -412,7 +417,7 @@ export default function CustomerStatementReport({ onBack }) {
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
                                                 {formatCurrency(invoice.paid)}
                                             </td>
-                                            <td className="px-4 py-3 text-sm font-bold text-red-600 text-right">
+                                            <td className="px-4 py-3 text-sm font-bold text-red-600 text-right print:text-gray-900">
                                                 {formatCurrency(invoice.balance)}
                                             </td>
                                         </tr>
@@ -422,7 +427,7 @@ export default function CustomerStatementReport({ onBack }) {
                         </div>
 
                         {/* Totals Section - Outside table to appear only on last page */}
-                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300 print:bg-transparent">
                             <div className="flex justify-end px-4 py-3">
                                 <div className="flex items-center gap-8">
                                     <div className="text-sm text-gray-900">
@@ -442,7 +447,7 @@ export default function CustomerStatementReport({ onBack }) {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-lg shadow-md p-12 text-center">
+                    <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
                         <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                         <p className="text-gray-500 text-lg">Select a customer and date range to show pending invoices</p>
                     </div>
@@ -451,6 +456,9 @@ export default function CustomerStatementReport({ onBack }) {
 
             <style jsx>{`
         @media print {
+          @page {
+            margin: 10mm 15mm 10mm 15mm;
+          }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
@@ -460,6 +468,13 @@ export default function CustomerStatementReport({ onBack }) {
           }
           .print\\:block {
             display: block !important;
+          }
+          .print\\:shadow-none {
+            box-shadow: none !important;
+            filter: none !important;
+          }
+           .print\\:p-0 {
+            padding: 0 !important;
           }
           table {
             page-break-inside: auto;

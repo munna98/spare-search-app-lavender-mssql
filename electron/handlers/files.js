@@ -12,7 +12,7 @@ export function registerFileHandlers(mainWindow) {
     if (canceled) {
       return { success: false };
     }
-    
+
     return { success: true, filePath: filePaths[0] };
   });
 }
