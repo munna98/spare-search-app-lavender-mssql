@@ -598,3 +598,81 @@ export async function getPendingInvoices(params) {
     throw error;
   }
 }
+
+// Get all brands
+export async function getBrands() {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        return [];
+      }
+    } else {
+      return [];
+    }
+  }
+
+  try {
+    const request = stockPool.request();
+    request.timeout = 15000;
+
+    const result = await request.query(`
+      SELECT BrandID, BrandName 
+      FROM dbo.inv_Brand 
+      ORDER BY BrandName
+    `);
+
+    return result.recordset.map(row => ({
+      id: row.BrandID,
+      name: row.BrandName
+    }));
+  } catch (error) {
+    console.error('Error fetching brands:', error);
+    return [];
+  }
+}
+
+// Update product details (Brand and Remarks)
+export async function updateProductDetails(productId, brandId, remarks) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    const request = stockPool.request();
+    request.input('productId', sql.Int, productId);
+    request.input('brandId', sql.Int, brandId);
+    request.input('remarks', sql.NVarChar, remarks);
+
+    await request.query(`
+      UPDATE dbo.inv_Product
+      SET 
+        BrandID = @brandId,
+        Remarks = @remarks
+      WHERE 
+        ProductID = @productId
+    `);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+}
