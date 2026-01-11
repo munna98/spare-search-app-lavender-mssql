@@ -246,7 +246,7 @@ export default function SearchResults({ results, query }) {
                     </td>
                     <td className="p-3 border-b border-green-100 text-gray-700">{row.description}</td>
                     <td className="p-3 border-b border-green-100">
-                      <div className="flex flex-col items-center leading-none">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleStockClick(row.partNumber, row.productId, row.stockQty)}
                           className={`text-sm flex items-center font-semibold px-2 py-0.5 rounded hover:bg-green-200 transition-colors ${row.stockQty > 0 ? 'text-green-600' : 'text-red-600'
@@ -257,7 +257,7 @@ export default function SearchResults({ results, query }) {
                           {row.stockQty}
                         </button>
                         {row.brandName && (
-                          <span className="text-[10px] text-gray-500 mt-0.5">
+                          <span className="inline-flex items-center px-2 py-0 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
                             {row.brandName}
                           </span>
                         )}
