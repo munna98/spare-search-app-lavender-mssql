@@ -7,12 +7,14 @@ import {
   CubeIcon,
   MagnifyingGlassCircleIcon,
   ServerIcon,
-  DocumentIcon
+  DocumentIcon,
+  PencilSquareIcon
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 import PrintDialog from './PrintDialog';
 import PriceCalculatorPopup from './PriceCalculatorPopup';
 import StockHistoryDialog from './StockHistoryDialog';
+import ProductEditModal from './ProductEditModal';
 
 export default function SearchResults({ results, query }) {
   const [copiedId, setCopiedId] = useState(null);
@@ -27,6 +29,10 @@ export default function SearchResults({ results, query }) {
   // Stock History Dialog State
   const [showStockHistory, setShowStockHistory] = useState(false);
   const [selectedStockItem, setSelectedStockItem] = useState(null);
+
+  // Product Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   const handlePriceClick = (event, price) => {
     const rect = event.target.getBoundingClientRect();
@@ -133,6 +139,23 @@ export default function SearchResults({ results, query }) {
     setShowPrintDialog(true);
   };
 
+  const handleModifyClick = (item) => {
+    setEditingProduct(item);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateSuccess = () => {
+    // Optionally trigger a re-search here if we want to immediately see changes
+    // But since search logic is in parent, we might just update the local item or let user re-search
+    // For better UX, we'd want to refresh. Since we don't have easy access to re-trigger parent search,
+    // we could just toast. But ideally we'd callback to parent.
+    // For now, let's just close and toast (which modal does). 
+    // Ideally update local state to reflect change immediately without re-fetch:
+    // This requires finding the item in cerobizResults and updating it.
+    // But cerobizResults is a prop. So we can't mutate it. Search needs to Re-run.
+    // We'll trust user to re-search for now or if possible expose a refresh.
+  };
+
   if (query && totalResults === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -209,7 +232,7 @@ export default function SearchResults({ results, query }) {
                   <th className="p-3 border-b border-green-200">Description</th>
                   <th className="p-3 border-b border-green-200">Stock</th>
                   <th className="p-3 border-b border-green-200">Cost</th>
-                  <th className="p-3 border-b border-green-200 w-12"></th>
+                  <th className="p-3 border-b border-green-200 w-20"></th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -272,13 +295,22 @@ export default function SearchResults({ results, query }) {
                       </button>
                     </td>
                     <td className="p-3 border-b border-green-100">
-                      <button
-                        onClick={() => handlePrintSingle(row, 'cerobiz')}
-                        className="p-1 hover:bg-green-200 rounded transition-colors"
-                        title="Print label"
-                      >
-                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handlePrintSingle(row, 'cerobiz')}
+                          className="p-1 hover:bg-green-200 rounded transition-colors"
+                          title="Print label"
+                        >
+                          <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                        </button>
+                        <button
+                          className="p-1 hover:bg-green-200 rounded transition-colors"
+                          title="Modify item"
+                          onClick={() => handleModifyClick(row)}
+                        >
+                          <PencilSquareIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -396,6 +428,17 @@ export default function SearchResults({ results, query }) {
         }}
         partNumber={selectedStockItem?.partNumber}
         productId={selectedStockItem?.productId}
+      />
+
+      {/* Product Edit Modal */}
+      <ProductEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingProduct(null);
+        }}
+        product={editingProduct}
+        onUpdateSuccess={handleUpdateSuccess}
       />
     </>
   );

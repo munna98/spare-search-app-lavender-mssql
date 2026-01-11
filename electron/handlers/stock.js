@@ -2,9 +2,29 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails } from '../stock/operations.js';
 
 export function registerStockHandlers() {
+  // Get all brands
+  ipcMain.handle('stock:getBrands', async () => {
+    try {
+      const brands = await getBrands();
+      return { success: true, brands };
+    } catch (error) {
+      return { success: false, message: error.message, brands: [] };
+    }
+  });
+
+  // Update product details
+  ipcMain.handle('stock:updateProduct', async (event, params) => {
+    try {
+      const { productId, brandId, remarks } = params;
+      await updateProductDetails(productId, brandId, remarks);
+      return { success: true, message: 'Product updated successfully' };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  });
   // Test stock connection
   ipcMain.handle('stock:test', async (event, config) => {
     return await testStockConnection(config);
