@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
+import SearchableSelect from './SearchableSelect';
 
 export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuccess }) {
     const [loading, setLoading] = useState(false);
@@ -106,19 +107,16 @@ export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuc
                             <label htmlFor="brand" className="block text-sm font-semibold text-gray-700 mb-1">
                                 Rack
                             </label>
-                            <select
-                                id="brand"
-                                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm py-2.5"
+                            <SearchableSelect
+                                options={brands.map(brand => ({
+                                    value: brand.id,
+                                    label: brand.name
+                                }))}
                                 value={formData.brandId}
-                                onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                            >
-                                <option value="">Select a rack...</option>
-                                {brands.map(brand => (
-                                    <option key={brand.id} value={brand.id}>
-                                        {brand.name}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={(value) => setFormData({ ...formData, brandId: value })}
+                                placeholder="Select a rack..."
+                                className="w-full"
+                            />
                         </div>
 
                         <div>
