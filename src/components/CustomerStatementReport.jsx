@@ -20,13 +20,11 @@ export default function CustomerStatementReport({ onBack }) {
     useEffect(() => {
         loadCustomers();
 
-        // Set default date range (last 30 days)
+        // Set default date range (today)
         const today = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         setEndDate(today.toISOString().split('T')[0]);
-        setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+        setStartDate(today.toISOString().split('T')[0]);
     }, []);
 
     const loadCustomers = async () => {

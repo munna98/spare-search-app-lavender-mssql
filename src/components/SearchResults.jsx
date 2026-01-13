@@ -232,14 +232,13 @@ export default function SearchResults({ results, query }) {
                   <th className="p-3 border-b border-green-200">Description</th>
                   <th className="p-3 border-b border-green-200">Stock</th>
                   <th className="p-3 border-b border-green-200">Cost</th>
-                  <th className="p-3 border-b border-green-200 w-20"></th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {cerobizResults.map((row, idx) => (
                   <tr
                     key={`cerobiz-${row.id}`}
-                    className={`${idx % 2 === 1 ? "bg-green-50" : "bg-white"
+                    className={`group relative ${idx % 2 === 1 ? "bg-green-50" : "bg-white"
                       } ${selectedItems.includes(`cerobiz-${row.id}`) ? "ring-2 ring-green-400 ring-inset" : ""
                       } hover:bg-green-100 transition-colors`}
                   >
@@ -267,7 +266,26 @@ export default function SearchResults({ results, query }) {
                         {renderCopyButton(row.partNumber, row.id, 'cerobiz')}
                       </div>
                     </td>
-                    <td className="p-3 border-b border-green-100 text-gray-700">{row.description}</td>
+                    <td className="p-3 border-b border-green-100 text-gray-700 relative">
+                      {row.description}
+                      {/* Action buttons - floating overlay on hover, to the left of Stock */}
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-green-100 rounded-md px-1.5 py-0.5 shadow-sm z-10 border border-green-200">
+                        <button
+                          onClick={() => handlePrintSingle(row, 'cerobiz')}
+                          className="p-1.5 hover:bg-green-200 rounded transition-colors"
+                          title="Print label"
+                        >
+                          <PrinterIcon className="h-5 w-5 text-gray-700 hover:text-gray-900" />
+                        </button>
+                        <button
+                          className="p-1.5 hover:bg-green-200 rounded transition-colors"
+                          title="Modify item"
+                          onClick={() => handleModifyClick(row)}
+                        >
+                          <PencilSquareIcon className="h-5 w-5 text-gray-700 hover:text-gray-900" />
+                        </button>
+                      </div>
+                    </td>
                     <td className="p-3 border-b border-green-100">
                       <div className="flex items-center gap-2">
                         <button
@@ -280,7 +298,7 @@ export default function SearchResults({ results, query }) {
                           {row.stockQty}
                         </button>
                         {row.brandName && (
-                          <span className="inline-flex items-center px-2 py-0 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-gray-200 text-gray-900 border border-gray-300 whitespace-nowrap">
                             {row.brandName}
                           </span>
                         )}
@@ -293,24 +311,6 @@ export default function SearchResults({ results, query }) {
                       >
                         ${row.cost?.toFixed(2) || '0.00'}
                       </button>
-                    </td>
-                    <td className="p-3 border-b border-green-100">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handlePrintSingle(row, 'cerobiz')}
-                          className="p-1 hover:bg-green-200 rounded transition-colors"
-                          title="Print label"
-                        >
-                          <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        </button>
-                        <button
-                          className="p-1 hover:bg-green-200 rounded transition-colors"
-                          title="Modify item"
-                          onClick={() => handleModifyClick(row)}
-                        >
-                          <PencilSquareIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -347,14 +347,13 @@ export default function SearchResults({ results, query }) {
                   <th className="p-3 border-b border-blue-200">Brand</th>
                   <th className="p-3 border-b border-blue-200">Description</th>
                   <th className="p-3 border-b border-blue-200">Price</th>
-                  <th className="p-3 border-b border-blue-200 w-12"></th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {fileResults.map((row, idx) => (
                   <tr
                     key={`files-${row.id}`}
-                    className={`${idx % 2 === 1 ? "bg-blue-50" : "bg-white"
+                    className={`group relative ${idx % 2 === 1 ? "bg-blue-50" : "bg-white"
                       } ${selectedItems.includes(`files-${row.id}`) ? "ring-2 ring-blue-400 ring-inset" : ""
                       } hover:bg-blue-100 transition-colors`}
                   >
@@ -373,22 +372,25 @@ export default function SearchResults({ results, query }) {
                       </div>
                     </td>
                     <td className="p-3 border-b border-blue-100 font-medium text-blue-600">{row.brand}</td>
-                    <td className="p-3 border-b border-blue-100 text-gray-700">{row.description}</td>
-                    <td className="p-3 border-b border-blue-100">
-                      <button
-                        onClick={(e) => handlePriceClick(e, row.price)}
-                        className="text-lg font-bold text-gray-900 rounded px-2 hover:text-blue-600 hover:bg-blue-200 "
-                      >
-                        ${row.price?.toFixed(2) || '0.00'}
-                      </button>
+                    <td className="p-3 border-b border-blue-100 text-gray-700 relative">
+                      {row.description}
+                      {/* Action button - floating overlay on hover, to the left of Price */}
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-100 rounded-md px-1.5 py-0.5 shadow-sm z-10 border border-blue-200">
+                        <button
+                          onClick={() => handlePrintSingle(row, 'files')}
+                          className="p-1.5 hover:bg-blue-200 rounded transition-colors"
+                          title="Print label"
+                        >
+                          <PrinterIcon className="h-5 w-5 text-gray-700 hover:text-gray-900" />
+                        </button>
+                      </div>
                     </td>
                     <td className="p-3 border-b border-blue-100">
                       <button
-                        onClick={() => handlePrintSingle(row, 'files')}
-                        className="p-1 hover:bg-blue-200 rounded transition-colors"
-                        title="Print label"
+                        onClick={(e) => handlePriceClick(e, row.price)}
+                        className="text-lg font-bold text-gray-900 rounded px-2 hover:text-blue-600 hover:bg-blue-200"
                       >
-                        <PrinterIcon className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                        ${row.price?.toFixed(2) || '0.00'}
                       </button>
                     </td>
                   </tr>
