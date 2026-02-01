@@ -323,7 +323,7 @@ export default function CustomerStatementReport({ onBack }) {
                                                 {transaction.particulars}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900">
-                                                {transaction.vNo} {transaction.relatedVNo ? `(${transaction.relatedVNo})` : ''}
+                                                {transaction.vNo} {transaction.relatedVNo ? <span className="text-xs">({transaction.relatedVNo})</span> : ''}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
                                                 {transaction.debit > 0 ? formatCurrency(transaction.debit) : '-'}
@@ -394,6 +394,9 @@ export default function CustomerStatementReport({ onBack }) {
                                             Paid
                                         </th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Returns
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                             Balance
                                         </th>
                                     </tr>
@@ -416,6 +419,19 @@ export default function CustomerStatementReport({ onBack }) {
                                             <td className="px-4 py-3 text-sm text-gray-900 text-right">
                                                 {formatCurrency(invoice.paid)}
                                             </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {invoice.returns && invoice.returns.length > 0 ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        {invoice.returns.map((ret, idx) => (
+                                                            <div key={idx} className="text-gray-900">
+                                                                {formatCurrency(ret.returnAmount)} <span className="text-xs">({ret.returnVoucherNo})</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3 text-sm font-bold text-red-600 text-right print:text-gray-900">
                                                 {formatCurrency(invoice.balance)}
                                             </td>
@@ -437,6 +453,9 @@ export default function CustomerStatementReport({ onBack }) {
                                     </div>
                                     <div className="text-sm text-gray-900 text-right min-w-[100px]">
                                         {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.paid, 0))}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {/* Empty cell for Returns column */}
                                     </div>
                                     <div className="text-sm text-gray-900 text-right min-w-[100px]">
                                         {formatCurrency(pendingInvoices.reduce((sum, inv) => sum + inv.balance, 0))}

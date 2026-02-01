@@ -571,14 +571,41 @@ export async function getPendingInvoices(params) {
 
     console.log(`Found ${result.recordset.length} pending invoices`);
 
-    return result.recordset.map(row => ({
-      transMasterId: row.TransMasterID,
-      invoiceNo: row.invoiceNo,
-      invoiceDate: row.invoiceDate,
-      amount: row.amount || 0,
-      paid: row.paid || 0,
-      balance: row.balance || 0
+    // Fetch return details for each invoice
+    const invoicesWithReturns = await Promise.all(result.recordset.map(async (row) => {
+      const returnRequest = stockPool.request();
+      returnRequest.timeout = 30000;
+      returnRequest.input('transMasterId', sql.Int, row.TransMasterID);
+      returnRequest.input('invoiceNo', sql.NVarChar, row.invoiceNo);
+      
+      const returnResult = await returnRequest.query(`
+        SELECT 
+          rt.VoucherNo AS returnVoucherNo,
+          rt.GrandTotal AS returnAmount
+        FROM 
+          inv_TransMaster rt
+        WHERE 
+          rt.VoucherID = 11
+          AND (rt.RTransID = @transMasterId OR rt.ReturnMasterID = @transMasterId)
+        ORDER BY 
+          rt.TransDate ASC
+      `);
+
+      return {
+        transMasterId: row.TransMasterID,
+        invoiceNo: row.invoiceNo,
+        invoiceDate: row.invoiceDate,
+        amount: row.amount || 0,
+        paid: row.paid || 0,
+        balance: row.balance || 0,
+        returns: (returnResult.recordset || []).map(ret => ({
+          returnVoucherNo: ret.returnVoucherNo,
+          returnAmount: ret.returnAmount
+        }))
+      };
     }));
+
+    return invoicesWithReturns;
 
   } catch (error) {
     console.error('Error fetching pending invoices:', error);
