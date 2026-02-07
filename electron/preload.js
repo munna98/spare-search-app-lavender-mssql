@@ -18,6 +18,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPendingInvoices: (params) => ipcRenderer.invoke('stock:getPendingInvoices', params),
   getBrands: () => ipcRenderer.invoke('stock:getBrands'),
   updateProduct: (params) => ipcRenderer.invoke('stock:updateProduct', params),
+  getAllParties: () => ipcRenderer.invoke('stock:getAllParties'),
+
+  // Cheque Management
+  getCheques: (filters) => ipcRenderer.invoke('cheques:getAll', filters),
+  getChequeById: (chequeId) => ipcRenderer.invoke('cheques:getById', chequeId),
+  createCheque: (chequeData) => ipcRenderer.invoke('cheques:create', chequeData),
+  updateCheque: (chequeId, chequeData) => ipcRenderer.invoke('cheques:update', chequeId, chequeData),
+  deleteCheque: (chequeId) => ipcRenderer.invoke('cheques:delete', chequeId),
+  getPendingChequeAlerts: () => ipcRenderer.invoke('cheques:getPendingAlerts'),
 
   // File operations
   openFile: () => ipcRenderer.invoke('dialog:openFile'),

@@ -9,6 +9,7 @@ import { initializeStockDatabase, closeStockDatabase } from './stock/connection.
 import { loadConfig, loadStockConfig } from './database/config.js';
 import { registerDatabaseHandlers } from './handlers/database.js';
 import { registerStockHandlers } from './handlers/stock.js';
+import { registerChequeHandlers } from './handlers/cheques.js';
 import { registerFileHandlers } from './handlers/files.js';
 import { registerNetworkHandlers } from './handlers/network.js';
 import { registerUpdateHandlers } from './handlers/updates.js';
@@ -28,6 +29,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+    icon: path.join(__dirname, '../assets/icon.ico')
   });
 
   updaterManager.setMainWindow(mainWindow);
@@ -52,7 +54,7 @@ async function initializeDatabases(window) {
   if (savedConfig) {
     try {
       await initializeDatabase(savedConfig);
-      
+
       window.webContents.send('config:status', {
         configured: true,
         connected: true,
@@ -66,7 +68,7 @@ async function initializeDatabases(window) {
       setTimeout(async () => {
         try {
           await initializeDatabase(savedConfig);
-          
+
           window.webContents.send('config:status', {
             configured: true,
             connected: true,
@@ -85,9 +87,9 @@ async function initializeDatabases(window) {
       }, 2000);
     }
   } else {
-    window.webContents.send('config:status', { 
-      configured: false, 
-      connected: false 
+    window.webContents.send('config:status', {
+      configured: false,
+      connected: false
     });
   }
 
@@ -96,14 +98,14 @@ async function initializeDatabases(window) {
     setTimeout(async () => {
       try {
         await initializeStockDatabase(savedStockConfig);
-        
+
         window.webContents.send('stock:status', {
           configured: true,
           connected: true
         });
       } catch (error) {
         console.error('Stock database connection failed:', error.message);
-        
+
         window.webContents.send('stock:status', {
           configured: true,
           connected: false,
@@ -119,6 +121,7 @@ app.whenReady().then(async () => {
 
   registerDatabaseHandlers(window);
   registerStockHandlers();
+  registerChequeHandlers();
   registerFileHandlers(window);
   registerNetworkHandlers();
   registerUpdateHandlers();

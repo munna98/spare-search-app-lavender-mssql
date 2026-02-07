@@ -2,9 +2,28 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails, getAllParties } from '../stock/operations.js';
 
 export function registerStockHandlers() {
+  // Get all parties (customers and suppliers)
+  ipcMain.handle('stock:getAllParties', async () => {
+    try {
+      const parties = await getAllParties();
+
+      return {
+        success: true,
+        parties,
+        message: `Retrieved ${parties.length} party ledger(s)`
+      };
+    } catch (error) {
+      console.error('All parties handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        parties: []
+      };
+    }
+  });
   // Get all brands
   ipcMain.handle('stock:getBrands', async () => {
     try {

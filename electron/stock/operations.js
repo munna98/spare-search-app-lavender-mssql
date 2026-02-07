@@ -577,7 +577,7 @@ export async function getPendingInvoices(params) {
       returnRequest.timeout = 30000;
       returnRequest.input('transMasterId', sql.Int, row.TransMasterID);
       returnRequest.input('invoiceNo', sql.NVarChar, row.invoiceNo);
-      
+
       const returnResult = await returnRequest.query(`
         SELECT 
           rt.VoucherNo AS returnVoucherNo,
@@ -701,5 +701,51 @@ export async function updateProductDetails(productId, brandId, remarks) {
   } catch (error) {
     console.error('Error updating product:', error);
     throw error;
+  }
+}
+// Get all parties (customers and suppliers) for dropdown
+export async function getAllParties() {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        return [];
+      }
+    } else {
+      return [];
+    }
+  }
+
+  try {
+    const request = stockPool.request();
+    request.timeout = 15000;
+
+    const result = await request.query(`
+      SELECT 
+        LedgerID,
+        LedgerName,
+        CASE WHEN ParentID = 34 THEN 'Customer' ELSE 'Supplier' END AS PartyType
+      FROM 
+        dbo.acc_Ledger
+      WHERE
+        ParentID IN (34, 17)
+        AND LedgerName IS NOT NULL
+      ORDER BY 
+        LedgerName
+    `);
+
+    return result.recordset.map(row => ({
+      ledgerId: row.LedgerID,
+      ledgerName: row.LedgerName,
+      partyType: row.PartyType
+    }));
+  } catch (error) {
+    console.error('Error fetching parties:', error);
+    return [];
   }
 }

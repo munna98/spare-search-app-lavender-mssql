@@ -95,7 +95,7 @@ export async function initializeDatabase(config) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       attempts++;
     }
-    
+
     if (pool && pool.connected) {
       return { success: true };
     }
@@ -117,7 +117,7 @@ export async function initializeDatabase(config) {
 
     const sqlConfig = buildSqlConfig(config);
     pool = new sql.ConnectionPool(sqlConfig);
-    
+
     pool.on('error', err => {
       console.error('Database pool error:', err.message);
     });
@@ -149,6 +149,41 @@ export async function initializeDatabase(config) {
         file_id INT,
         FOREIGN KEY (file_id) REFERENCES uploaded_files(id)
       )
+    `);
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='cheques' AND xtype='U')
+      CREATE TABLE cheques (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        cheque_no NVARCHAR(50) NOT NULL,
+        transaction_type NVARCHAR(20) NOT NULL CHECK (transaction_type IN ('Received', 'Given')),
+        transaction_date DATE NOT NULL,
+        party_ledger_id INT NOT NULL,
+        party_name NVARCHAR(255) NOT NULL,
+        cheque_amount DECIMAL(18, 2) NOT NULL,
+        cheque_date DATE NOT NULL,
+        status NVARCHAR(20) NOT NULL CHECK (status IN ('Pending', 'Deposited', 'Bounced', 'Cleared')),
+        remarks NVARCHAR(500) NULL,
+        created_at DATETIME DEFAULT GETDATE(),
+        updated_at DATETIME DEFAULT GETDATE()
+      )
+    `);
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_party_ledger_id' AND object_id = OBJECT_ID('cheques'))
+      CREATE INDEX idx_cheques_party_ledger_id ON cheques(party_ledger_id);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_status' AND object_id = OBJECT_ID('cheques'))
+      CREATE INDEX idx_cheques_status ON cheques(status);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_cheque_date' AND object_id = OBJECT_ID('cheques'))
+      CREATE INDEX idx_cheques_cheque_date ON cheques(cheque_date);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_transaction_date' AND object_id = OBJECT_ID('cheques'))
+      CREATE INDEX idx_cheques_transaction_date ON cheques(transaction_date);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_transaction_type' AND object_id = OBJECT_ID('cheques'))
+      CREATE INDEX idx_cheques_transaction_type ON cheques(transaction_type);
     `);
 
     await pool.request().query(`
@@ -194,12 +229,12 @@ export function getPool() {
     console.error('Warning: getPool() called but pool is null');
     return null;
   }
-  
+
   if (!pool.connected) {
     console.error('Warning: getPool() called but pool is not connected');
     return null;
   }
-  
+
   return pool;
 }
 
