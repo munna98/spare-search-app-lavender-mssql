@@ -1,25 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     ArrowLeftIcon,
     PlusIcon,
     MinusIcon,
     PencilIcon,
     TrashIcon,
-    FunnelIcon
+    FunnelIcon,
+    XMarkIcon,
+    ChevronDownIcon,
+    CalendarIcon
 } from '@heroicons/react/24/outline';
 import SearchableSelect from './SearchableSelect';
 import { toast } from 'react-toastify';
 
 const STATUS_OPTIONS = [
     { value: 'Pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'Deposited', label: 'Deposited', color: 'bg-blue-100 text-blue-800' },
+    { value: 'Deposited', label: 'Deposited', color: 'bg-purple-100 text-purple-800' },
     { value: 'Bounced', label: 'Bounced', color: 'bg-red-100 text-red-800' },
-    { value: 'Cleared', label: 'Cleared', color: 'bg-green-100 text-green-800' }
+    { value: 'Cleared', label: 'Cleared', color: 'bg-teal-100 text-teal-800' }
 ];
 
 const TRANSACTION_TYPES = [
-    { value: 'Received', label: 'Received (From Customer)', color: 'text-green-600' },
-    { value: 'Given', label: 'Given (To Supplier)', color: 'text-blue-600' }
+    { value: 'Received', label: 'Received (From Customer)', color: 'text-teal-600' },
+    { value: 'Given', label: 'Given (To Supplier)', color: 'text-purple-600' }
 ];
 
 export default function ChequeManagement({ onBack }) {
@@ -28,8 +31,24 @@ export default function ChequeManagement({ onBack }) {
     const [loading, setLoading] = useState(false);
     const [loadingParties, setLoadingParties] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
+    const [activeFilterColumn, setActiveFilterColumn] = useState(null);
     const [editingCheque, setEditingCheque] = useState(null);
+    const partyFilterRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (partyFilterRef.current && !partyFilterRef.current.contains(event.target)) {
+                setActiveFilterColumn(null);
+            }
+        };
+
+        if (activeFilterColumn === 'party') {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [activeFilterColumn]);
     const [filters, setFilters] = useState({
         status: '',
         transactionType: '',
@@ -240,6 +259,7 @@ export default function ChequeManagement({ onBack }) {
         );
     };
 
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
@@ -256,16 +276,18 @@ export default function ChequeManagement({ onBack }) {
                 </div>
 
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2 ${showFilters ? 'bg-gray-100' : 'bg-white'}`}
-                    >
-                        <FunnelIcon className="h-5 w-5 text-gray-600" />
-                        {showFilters ? 'Hide Filters' : 'Filter'}
-                    </button>
+                    {Object.values(filters).some(v => v !== '') && (
+                        <button
+                            onClick={clearFilters}
+                            className="px-4 py-2 text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1 text-sm font-medium"
+                        >
+                            <XMarkIcon className="h-4 w-4" />
+                            Clear All Filters
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowForm(!showForm)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
                     >
                         {showForm ? <MinusIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
                         {showForm ? 'Hide Form' : 'New Cheque'}
@@ -290,7 +312,7 @@ export default function ChequeManagement({ onBack }) {
                                 <select
                                     value={formData.transactionType}
                                     onChange={(e) => setFormData({ ...formData, transactionType: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 >
                                     {TRANSACTION_TYPES.map(option => (
@@ -335,7 +357,7 @@ export default function ChequeManagement({ onBack }) {
                                     type="text"
                                     value={formData.chequeNo}
                                     onChange={(e) => setFormData({ ...formData, chequeNo: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 />
                             </div>
@@ -350,7 +372,7 @@ export default function ChequeManagement({ onBack }) {
                                     step="0.01"
                                     value={formData.chequeAmount}
                                     onChange={(e) => setFormData({ ...formData, chequeAmount: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 />
                             </div>
@@ -364,7 +386,7 @@ export default function ChequeManagement({ onBack }) {
                                     type="date"
                                     value={formData.transactionDate}
                                     onChange={(e) => setFormData({ ...formData, transactionDate: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 />
                             </div>
@@ -378,7 +400,7 @@ export default function ChequeManagement({ onBack }) {
                                     type="date"
                                     value={formData.chequeDate}
                                     onChange={(e) => setFormData({ ...formData, chequeDate: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 />
                             </div>
@@ -420,7 +442,7 @@ export default function ChequeManagement({ onBack }) {
                         <div className="flex gap-3 mt-6">
                             <button
                                 type="submit"
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                             >
                                 {editingCheque ? 'Update Cheque' : 'Create Cheque'}
                             </button>
@@ -436,167 +458,152 @@ export default function ChequeManagement({ onBack }) {
                 </div>
             )}
 
-            {/* Filters */}
-            {showFilters && (
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Row 1 */}
-                        {/* Status Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select
-                                value={filters.status}
-                                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">All Statuses</option>
-                                {STATUS_OPTIONS.map(option => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Type Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select
-                                value={filters.transactionType}
-                                onChange={(e) => setFilters({ ...filters, transactionType: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">All Types</option>
-                                {TRANSACTION_TYPES.map(option => (
-                                    <option key={option.value} value={option.value}>{option.value}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Party Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Party</label>
-                            <SearchableSelect
-                                options={[{ value: '', label: 'All Parties' }, ...parties.map(p => ({ value: p.ledgerId, label: p.ledgerName }))]}
-                                value={filters.partyLedgerId}
-                                onChange={(val) => setFilters({ ...filters, partyLedgerId: val })}
-                                placeholder="All Parties"
-                            />
-                        </div>
-
-                        {/* Row 2 */}
-                        {/* Start Date */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Cheque Date From</label>
-                            <input
-                                type="date"
-                                value={filters.startDate}
-                                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        {/* End Date */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Cheque Date To</label>
-                            <input
-                                type="date"
-                                value={filters.endDate}
-                                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        {/* Filter Actions */}
-                        <div className="flex items-end gap-2">
-                            <button
-                                onClick={applyFilters}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex-1"
-                            >
-                                Apply
-                            </button>
-                            <button
-                                onClick={clearFilters}
-                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors text-sm font-medium flex-1"
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Cheques List */}
-            {loading ? (
-                <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-                </div>
-            ) : cheques.length > 0 ? (
-                <div className="bg-white">
-                    <div className="flex items-center mb-3">
-                        <div className="h-5 w-5 text-purple-600 mr-2 flex items-center justify-center border-2 border-purple-600 rounded-full font-bold text-xs" >
-                            £
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-800">
-                            Cheque Records ({cheques.length})
-                        </h3>
+            <div className="bg-white">
+                <div className="flex items-center mb-3">
+                    <div className="h-5 w-5 text-purple-600 mr-2 flex items-center justify-center border-2 border-purple-600 rounded-full font-bold text-xs" >
+                        £
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-800">
+                        Cheque Records ({cheques.length})
+                    </h3>
+                </div>
 
-                    <div className="overflow-x-auto shadow-sm border-2 border-purple-200 rounded-lg bg-purple-50">
-                        <table className="min-w-full divide-y divide-purple-200">
-                            <thead className="bg-purple-100">
+                <div className="overflow-x-auto shadow-sm border-2 border-purple-200 rounded-lg bg-purple-50">
+                    <table className="min-w-full divide-y divide-purple-200">
+                        <thead className="bg-purple-100">
+                            <tr>
+                                <th className="px-4 py-3 text-left">
+                                    <select
+                                        value={filters.transactionType}
+                                        onChange={(e) => {
+                                            const newFilters = { ...filters, transactionType: e.target.value };
+                                            setFilters(newFilters);
+                                            loadCheques(newFilters);
+                                        }}
+                                        className="bg-transparent border-none text-xs font-semibold text-gray-700 uppercase focus:ring-0 cursor-pointer hover:text-purple-600 transition-colors p-0 w-full"
+                                    >
+                                        <option value="" className="hidden">Type</option>
+                                        <option value="">All Types</option>
+                                        {TRANSACTION_TYPES.map(option => (
+                                            <option key={option.value} value={option.value}>{option.value}</option>
+                                        ))}
+                                    </select>
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cheque No</th>
+                                <th className="px-4 py-3 text-left">
+                                    <div className="text-xs normal-case font-normal min-w-[160px]">
+                                        <SearchableSelect
+                                            options={[{ value: '', label: 'All Parties' }, ...parties.map(p => ({ value: p.ledgerId, label: p.ledgerName }))]}
+                                            value={filters.partyLedgerId}
+                                            onChange={(val) => {
+                                                const newFilters = { ...filters, partyLedgerId: val };
+                                                setFilters(newFilters);
+                                                loadCheques(newFilters);
+                                            }}
+                                            placeholder="Party"
+                                            className="text-xs"
+                                            buttonClassName="bg-transparent border-none shadow-none p-0 text-xs font-semibold text-gray-700 uppercase focus:ring-0"
+                                        />
+                                    </div>
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Amount</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cheque Date</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Remaining</th>
+                                <th className="px-4 py-3 text-left">
+                                    <select
+                                        value={filters.status}
+                                        onChange={(e) => {
+                                            const newFilters = { ...filters, status: e.target.value };
+                                            setFilters(newFilters);
+                                            loadCheques(newFilters);
+                                        }}
+                                        className="bg-transparent border-none text-xs font-semibold text-gray-700 uppercase focus:ring-0 cursor-pointer hover:text-purple-600 transition-colors p-0 w-full"
+                                    >
+                                        <option value="" className="hidden">Status</option>
+                                        <option value="">All Statuses</option>
+                                        {STATUS_OPTIONS.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-purple-100">
+                            {loading ? (
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cheque No</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Party Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Amount</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cheque Date</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Remaining</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                                    <td colSpan="7" className="px-4 py-12 text-center">
+                                        <div className="flex justify-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-purple-100">
-                                {cheques.map((cheque, idx) => (
-                                    <tr key={cheque.id} className={`group hover:bg-purple-100 transition-colors ${idx % 2 === 1 ? "bg-purple-50" : "bg-white"}`}>
-                                        <td className="px-4 py-3 text-sm border-b border-purple-100 font-medium text-gray-600">
-                                            {cheque.transactionType === 'Received' ? 'Received' : 'Given'}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium border-b border-purple-100">{cheque.chequeNo}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 border-b border-purple-100 relative group/cell">
-                                            <span className="block pr-16">{cheque.partyName}</span>
-                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm rounded px-1 py-0.5 shadow-sm border border-purple-200">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleEdit(cheque); }}
-                                                    className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <PencilIcon className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(cheque.id); }}
-                                                    className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <TrashIcon className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold border-b border-purple-100">₹{formatCurrency(cheque.chequeAmount)}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 border-b border-purple-100">{formatDate(cheque.chequeDate)}</td>
-                                        <td className="px-4 py-3 text-sm border-b border-purple-100">
-                                            {getRemainingDaysBadge(cheque.chequeDate, cheque.status)}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm border-b border-purple-100">{getStatusBadge(cheque.status)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            ) : cheques.length > 0 ? (
+                                <>
+                                    {cheques.map((cheque, idx) => (
+                                        <tr key={cheque.id} className={`group hover:bg-purple-100 transition-colors ${idx % 2 === 1 ? "bg-purple-50" : "bg-white"}`}>
+                                            <td className="px-4 py-3 text-sm border-b border-purple-100 font-medium text-gray-600">
+                                                {cheque.transactionType === 'Received' ? 'Received' : 'Given'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-medium border-b border-purple-100">{cheque.chequeNo}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 border-b border-purple-100 relative group/cell">
+                                                <span className="block pr-16">{cheque.partyName}</span>
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm rounded px-1 py-0.5 shadow-sm border border-purple-200">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleEdit(cheque); }}
+                                                        className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <PencilIcon className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(cheque.id); }}
+                                                        className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-semibold border-b border-purple-100">₹{formatCurrency(cheque.chequeAmount)}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 border-b border-purple-100">{formatDate(cheque.chequeDate)}</td>
+                                            <td className="px-4 py-3 text-sm border-b border-purple-100">
+                                                {getRemainingDaysBadge(cheque.chequeDate, cheque.status)}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm border-b border-purple-100">{getStatusBadge(cheque.status)}</td>
+                                        </tr>
+                                    ))}
+                                </>
+                            ) : (
+                                <tr>
+                                    <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
+                                        No cheques found matching your filters.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                        {cheques.length > 0 && !loading && (
+                            <tfoot className="bg-purple-100 font-bold text-gray-900">
+                                <tr>
+                                    <td className="px-4 py-3 text-sm border-t-2 border-purple-200" colSpan="3">Total</td>
+                                    <td className={`px-4 py-3 text-sm border-t-2 border-purple-200 ${cheques.reduce((sum, c) => {
+                                        const amount = parseFloat(c.chequeAmount) || 0;
+                                        return c.transactionType === 'Given' ? sum - amount : sum + amount;
+                                    }, 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                        ₹{formatCurrency(Math.abs(cheques.reduce((sum, c) => {
+                                            const amount = parseFloat(c.chequeAmount) || 0;
+                                            return c.transactionType === 'Given' ? sum - amount : sum + amount;
+                                        }, 0)))}
+                                    </td>
+                                    <td className="px-4 py-3 border-t-2 border-purple-200" colSpan="3"></td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
                 </div>
-            ) : (
-                <div className="bg-white rounded-lg shadow-md p-12 text-center border-2 border-dashed border-gray-300">
-                    <p className="text-gray-500 text-lg">No cheques found</p>
-                    <p className="text-gray-400 text-sm mt-2">Create a new cheque to get started</p>
-                </div>
-            )}
+            </div>
         </div>
     );
 }
