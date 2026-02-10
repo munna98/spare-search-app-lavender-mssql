@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails, getAllParties } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Get all parties (customers and suppliers)
@@ -212,6 +212,36 @@ export function registerStockHandlers() {
         success: false,
         message: error.message,
         invoices: []
+      };
+    }
+  });
+
+  // Get outstanding balance summary
+  ipcMain.handle('stock:getOutstandingSummary', async (event, params) => {
+    try {
+      const { year } = params;
+
+      if (!year) {
+        return {
+          success: false,
+          message: 'Year is required',
+          data: []
+        };
+      }
+
+      const data = await getOutstandingSummary(year);
+
+      return {
+        success: true,
+        data,
+        message: `Retrieved outstanding summary for ${data.length} customer(s)`
+      };
+    } catch (error) {
+      console.error('Outstanding summary handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        data: []
       };
     }
   });

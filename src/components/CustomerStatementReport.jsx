@@ -4,7 +4,7 @@ import SearchableSelect from './SearchableSelect';
 import { toast } from 'react-toastify';
 import printHeader from '../assets/print-header.png';
 
-export default function CustomerStatementReport({ onBack }) {
+export default function CustomerStatementReport({ onBack, drillDownParams }) {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [selectedCustomerName, setSelectedCustomerName] = useState('');
@@ -23,8 +23,13 @@ export default function CustomerStatementReport({ onBack }) {
         // Set default date range (today)
         const today = new Date();
 
-        setEndDate(today.toISOString().split('T')[0]);
-        setStartDate(today.toISOString().split('T')[0]);
+        if (drillDownParams) {
+            setStartDate(drillDownParams.startDate);
+            setEndDate(drillDownParams.endDate);
+        } else {
+            setEndDate(today.toISOString().split('T')[0]);
+            setStartDate(today.toISOString().split('T')[0]);
+        }
     }, []);
 
     const loadCustomers = async () => {
@@ -33,6 +38,18 @@ export default function CustomerStatementReport({ onBack }) {
 
             if (response.success) {
                 setCustomers(response.ledgers);
+
+                // If drill-down params, auto-select customer and generate
+                if (drillDownParams) {
+                    const ledgerId = drillDownParams.ledgerId;
+                    setSelectedCustomer(ledgerId);
+                    setSelectedCustomerName(drillDownParams.ledgerName || '');
+
+                    // Auto-generate after a brief delay to allow state to settle
+                    setTimeout(() => {
+                        autoGenerate(ledgerId, drillDownParams.startDate, drillDownParams.endDate);
+                    }, 100);
+                }
             } else {
                 toast.error(`Failed to load customers: ${response.message}`);
             }
@@ -40,6 +57,40 @@ export default function CustomerStatementReport({ onBack }) {
             toast.error(`Error loading customers: ${error.message}`);
         } finally {
             setLoadingCustomers(false);
+        }
+    };
+
+    // Auto-generate report (used by drill-down)
+    const autoGenerate = async (ledgerId, start, end) => {
+        setLoading(true);
+        try {
+            const statementResponse = await window.electronAPI.getCustomerStatement({
+                ledgerId: parseInt(ledgerId),
+                startDate: start,
+                endDate: end
+            });
+
+            if (statementResponse.success) {
+                setTransactions(statementResponse.transactions);
+            } else {
+                toast.error(`Failed to generate statement: ${statementResponse.message}`);
+            }
+
+            const pendingResponse = await window.electronAPI.getPendingInvoices({
+                ledgerId: parseInt(ledgerId),
+                startDate: start,
+                endDate: end
+            });
+
+            if (pendingResponse.success) {
+                setPendingInvoices(pendingResponse.invoices);
+            } else {
+                toast.error(`Failed to fetch pending invoices: ${pendingResponse.message}`);
+            }
+        } catch (error) {
+            toast.error(`Error generating report: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 

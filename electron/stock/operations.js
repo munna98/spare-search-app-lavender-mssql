@@ -749,3 +749,90 @@ export async function getAllParties() {
     return [];
   }
 }
+
+// Get outstanding balance summary for all customers by month for a given year
+export async function getOutstandingSummary(year) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    console.log(`Fetching outstanding summary for year: ${year}`);
+
+    const request = stockPool.request();
+    request.timeout = 30000;
+    request.input('year', sql.Int, year);
+
+    const result = await request.query(`
+      SELECT 
+        l.LedgerID,
+        l.LedgerName,
+        MONTH(tm.TransDate) AS TransMonth,
+        SUM(td.Debit) - SUM(td.Credit) AS Outstanding
+      FROM dbo.acc_TransDetails td
+      INNER JOIN dbo.acc_TransMaster tm ON td.TransMasterID = tm.TransMasterID
+      INNER JOIN dbo.acc_Ledger l ON td.LedgerID = l.LedgerID
+      WHERE l.ParentID = 34
+        AND YEAR(tm.TransDate) = @year
+        AND tm.VoucherID IN (9, 11)
+      GROUP BY l.LedgerID, l.LedgerName, MONTH(tm.TransDate)
+      HAVING SUM(td.Debit) - SUM(td.Credit) <> 0
+      ORDER BY l.LedgerName, MONTH(tm.TransDate)
+    `);
+
+    console.log(`Found ${result.recordset.length} outstanding summary rows`);
+
+    // Pivot flat rows into per-customer objects
+    const customerMap = {};
+    result.recordset.forEach(row => {
+      const key = row.LedgerID;
+      if (!customerMap[key]) {
+        customerMap[key] = {
+          ledgerId: row.LedgerID,
+          ledgerName: row.LedgerName,
+          months: {},
+          total: 0
+        };
+      }
+      customerMap[key].months[row.TransMonth] = row.Outstanding;
+      customerMap[key].total += row.Outstanding;
+    });
+
+    // Convert to array, filter out zero-total customers, and sort by name
+    const data = Object.values(customerMap)
+      .filter(c => Math.abs(c.total) > 0.01)
+      .sort((a, b) => a.ledgerName.localeCompare(b.ledgerName));
+
+    return data;
+
+  } catch (error) {
+    console.error('Error fetching outstanding summary:', error);
+
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    throw error;
+  }
+}

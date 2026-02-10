@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChartBarIcon, CogIcon, FolderOpenIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { ChartBarIcon, CogIcon, FolderOpenIcon, BanknotesIcon, TableCellsIcon } from "@heroicons/react/24/outline";
 import PartSearchForm from "./components/PartSearchForm";
 import RecentSearches from "./components/RecentSearches";
 import SearchResults from "./components/SearchResults";
@@ -12,6 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import CustomerStatementReport from './components/CustomerStatementReport';
 import ChequeManagement from './components/ChequeManagement';
 import PendingChequeAlerts from './components/PendingChequeAlerts';
+import OutstandingSummaryReport from './components/OutstandingSummaryReport';
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -22,6 +23,8 @@ export default function App() {
   const [showFileManager, setShowFileManager] = useState(false);
   const [showCustomerStatement, setShowCustomerStatement] = useState(false);
   const [showChequeManagement, setShowChequeManagement] = useState(false);
+  const [showOutstandingSummary, setShowOutstandingSummary] = useState(false);
+  const [drillDownParams, setDrillDownParams] = useState(null);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [checkingConfig, setCheckingConfig] = useState(true);
@@ -143,12 +146,35 @@ export default function App() {
     );
   }
 
+  if (showOutstandingSummary) {
+    return (
+      <>
+        <ToastContainer position="top-right" autoClose={3000} />
+        <UpdateNotification />
+        <OutstandingSummaryReport
+          onBack={() => setShowOutstandingSummary(false)}
+          onDrillDown={(params) => {
+            setDrillDownParams(params);
+            setShowOutstandingSummary(false);
+            setShowCustomerStatement(true);
+          }}
+        />
+      </>
+    );
+  }
+
   if (showCustomerStatement) {
     return (
       <>
         <ToastContainer position="top-right" autoClose={3000} />
         <UpdateNotification />
-        <CustomerStatementReport onBack={() => setShowCustomerStatement(false)} />
+        <CustomerStatementReport
+          onBack={() => {
+            setShowCustomerStatement(false);
+            setDrillDownParams(null);
+          }}
+          drillDownParams={drillDownParams}
+        />
       </>
     );
   }
@@ -184,6 +210,13 @@ export default function App() {
           <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
 
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowOutstandingSummary(true)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
+              title="Outstanding Balance Summary"
+            >
+              <TableCellsIcon className="h-5 w-5 text-gray-600" />
+            </button>
             <button
               onClick={() => setShowCustomerStatement(true)}
               className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
