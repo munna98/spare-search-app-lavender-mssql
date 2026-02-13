@@ -780,65 +780,48 @@ export async function getOutstandingSummary(year, type = 'gross') {
     let result;
 
     if (type === 'net') {
-      // Net Outstanding: Invoices - Payments - Returns - Discounts
-      // Similar logic to getPendingInvoices but aggregated by month
+      // Net Outstanding: Calculate per-invoice first (inspired by getPendingInvoices), then aggregate
       result = await request.query(`
         SELECT 
           l.LedgerID,
           l.LedgerName,
-          MONTH(itm.TransDate) AS TransMonth,
-          SUM(
-            itm.GrandTotal 
-            - ISNULL(paid.Amount, 0)
-            - ISNULL(ret.Amount, 0)
-            - ISNULL(disc.Amount, 0)
-          ) AS Outstanding
-        FROM 
-          dbo.inv_TransMaster itm
-        INNER JOIN 
-          dbo.acc_Ledger l ON itm.CashPartyID = l.LedgerID
-        
-        -- Join for Payments
-        LEFT JOIN (
-          SELECT TransMasterID, SUM(Amount) as Amount 
-          FROM dbo.inv_TransPayment 
-          GROUP BY TransMasterID
-        ) paid ON itm.TransMasterID = paid.TransMasterID
-
-        -- Join for Returns (both Sales Return and identifying returns linked to this invoice)
-         LEFT JOIN (
+          MONTH(Invoices.TransDate) AS TransMonth,
+          SUM(Invoices.Balance) AS Outstanding
+        FROM (
           SELECT 
-            RTransID, 
-            SUM(GrandTotal) as Amount 
-          FROM dbo.inv_TransMaster 
-          WHERE VoucherID = 11 -- Sales Return
-          GROUP BY RTransID
-        ) ret ON itm.TransMasterID = ret.RTransID
-
-        -- Join for Discounts
-        LEFT JOIN (
-          SELECT TransID, SUM(Discount) as Amount 
-          FROM dbo.acc_TransDetails 
-          GROUP BY TransID
-        ) disc ON itm.TransMasterID = disc.TransID
-
+            itm.TransMasterID,
+            itm.CashPartyID,
+            itm.TransDate,
+            (itm.GrandTotal 
+              - ISNULL(SUM(itp.Amount), 0) 
+              - ISNULL((SELECT SUM(rt.GrandTotal) FROM dbo.inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)), 0)
+              - ISNULL((SELECT SUM(atd.Discount) FROM dbo.acc_TransDetails atd WHERE atd.TransID = itm.TransMasterID), 0)
+            ) AS Balance
+          FROM 
+            dbo.inv_TransMaster itm
+          LEFT JOIN 
+            dbo.inv_TransPayment itp ON itm.TransMasterID = itp.TransMasterID
+          WHERE 
+            itm.VoucherID IN (9, 13) -- Sales, Estimate
+            AND YEAR(itm.TransDate) = @year
+            AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM dbo.acc_BillwiseSettle)
+            AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM dbo.acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
+          GROUP BY 
+            itm.TransMasterID,
+            itm.CashPartyID,
+            itm.TransDate,
+            itm.GrandTotal
+        ) AS Invoices
+        INNER JOIN 
+          dbo.acc_Ledger l ON Invoices.CashPartyID = l.LedgerID
         WHERE 
-          itm.VoucherID IN (9, 13) -- Sales, Estimate
-          AND YEAR(itm.TransDate) = @year
-          AND l.ParentID = 34 -- Customers
-          AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_BillwiseSettle WHERE LedgerID = l.LedgerID)
-          AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
+          l.ParentID = 34 -- Customers
         GROUP BY 
-          l.LedgerID, l.LedgerName, MONTH(itm.TransDate)
+          l.LedgerID, l.LedgerName, MONTH(Invoices.TransDate)
         HAVING 
-          SUM(
-            itm.GrandTotal 
-            - ISNULL(paid.Amount, 0)
-            - ISNULL(ret.Amount, 0)
-            - ISNULL(disc.Amount, 0)
-          ) > 0.01 -- Only show positive outstanding
+          SUM(Invoices.Balance) > 0.01
         ORDER BY 
-          l.LedgerName, MONTH(itm.TransDate)
+          l.LedgerName, MONTH(Invoices.TransDate)
       `);
     } else {
       // Gross Outstanding: Simple Debit - Credit from Ledger Transactions
