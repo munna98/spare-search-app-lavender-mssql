@@ -751,7 +751,7 @@ export async function getAllParties() {
 }
 
 // Get outstanding balance summary for all customers by month for a given year
-export async function getOutstandingSummary(year) {
+export async function getOutstandingSummary(year, type = 'gross') {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
 
@@ -771,28 +771,94 @@ export async function getOutstandingSummary(year) {
   }
 
   try {
-    console.log(`Fetching outstanding summary for year: ${year}`);
+    console.log(`Fetching outstanding summary for year: ${year}, type: ${type}`);
 
     const request = stockPool.request();
-    request.timeout = 30000;
+    request.timeout = 60000; // Increased timeout for heavier query
     request.input('year', sql.Int, year);
 
-    const result = await request.query(`
-      SELECT 
-        l.LedgerID,
-        l.LedgerName,
-        MONTH(tm.TransDate) AS TransMonth,
-        SUM(td.Debit) - SUM(td.Credit) AS Outstanding
-      FROM dbo.acc_TransDetails td
-      INNER JOIN dbo.acc_TransMaster tm ON td.TransMasterID = tm.TransMasterID
-      INNER JOIN dbo.acc_Ledger l ON td.LedgerID = l.LedgerID
-      WHERE l.ParentID = 34
-        AND YEAR(tm.TransDate) = @year
-        AND tm.VoucherID IN (9, 11)
-      GROUP BY l.LedgerID, l.LedgerName, MONTH(tm.TransDate)
-      HAVING SUM(td.Debit) - SUM(td.Credit) <> 0
-      ORDER BY l.LedgerName, MONTH(tm.TransDate)
-    `);
+    let result;
+
+    if (type === 'net') {
+      // Net Outstanding: Invoices - Payments - Returns - Discounts
+      // Similar logic to getPendingInvoices but aggregated by month
+      result = await request.query(`
+        SELECT 
+          l.LedgerID,
+          l.LedgerName,
+          MONTH(itm.TransDate) AS TransMonth,
+          SUM(
+            itm.GrandTotal 
+            - ISNULL(paid.Amount, 0)
+            - ISNULL(ret.Amount, 0)
+            - ISNULL(disc.Amount, 0)
+          ) AS Outstanding
+        FROM 
+          dbo.inv_TransMaster itm
+        INNER JOIN 
+          dbo.acc_Ledger l ON itm.CashPartyID = l.LedgerID
+        
+        -- Join for Payments
+        LEFT JOIN (
+          SELECT TransMasterID, SUM(Amount) as Amount 
+          FROM dbo.inv_TransPayment 
+          GROUP BY TransMasterID
+        ) paid ON itm.TransMasterID = paid.TransMasterID
+
+        -- Join for Returns (both Sales Return and identifying returns linked to this invoice)
+         LEFT JOIN (
+          SELECT 
+            RTransID, 
+            SUM(GrandTotal) as Amount 
+          FROM dbo.inv_TransMaster 
+          WHERE VoucherID = 11 -- Sales Return
+          GROUP BY RTransID
+        ) ret ON itm.TransMasterID = ret.RTransID
+
+        -- Join for Discounts
+        LEFT JOIN (
+          SELECT TransID, SUM(Discount) as Amount 
+          FROM dbo.acc_TransDetails 
+          GROUP BY TransID
+        ) disc ON itm.TransMasterID = disc.TransID
+
+        WHERE 
+          itm.VoucherID IN (9, 13) -- Sales, Estimate
+          AND YEAR(itm.TransDate) = @year
+          AND l.ParentID = 34 -- Customers
+          AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_BillwiseSettle WHERE LedgerID = l.LedgerID)
+          AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
+        GROUP BY 
+          l.LedgerID, l.LedgerName, MONTH(itm.TransDate)
+        HAVING 
+          SUM(
+            itm.GrandTotal 
+            - ISNULL(paid.Amount, 0)
+            - ISNULL(ret.Amount, 0)
+            - ISNULL(disc.Amount, 0)
+          ) > 0.01 -- Only show positive outstanding
+        ORDER BY 
+          l.LedgerName, MONTH(itm.TransDate)
+      `);
+    } else {
+      // Gross Outstanding: Simple Debit - Credit from Ledger Transactions
+      result = await request.query(`
+        SELECT 
+          l.LedgerID,
+          l.LedgerName,
+          MONTH(tm.TransDate) AS TransMonth,
+          SUM(td.Debit) - SUM(td.Credit) AS Outstanding
+        FROM dbo.acc_TransDetails td
+        INNER JOIN dbo.acc_TransMaster tm ON td.TransMasterID = tm.TransMasterID
+        INNER JOIN dbo.acc_Ledger l ON td.LedgerID = l.LedgerID
+        WHERE l.ParentID = 34
+          AND YEAR(tm.TransDate) = @year
+          AND tm.VoucherID IN (9, 11)
+        GROUP BY l.LedgerID, l.LedgerName, MONTH(tm.TransDate)
+        HAVING SUM(td.Debit) - SUM(td.Credit) <> 0
+        ORDER BY l.LedgerName, MONTH(tm.TransDate)
+      `);
+    }
 
     console.log(`Found ${result.recordset.length} outstanding summary rows`);
 

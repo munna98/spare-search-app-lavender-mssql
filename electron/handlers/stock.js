@@ -219,7 +219,7 @@ export function registerStockHandlers() {
   // Get outstanding balance summary
   ipcMain.handle('stock:getOutstandingSummary', async (event, params) => {
     try {
-      const { year } = params;
+      const { year, type } = params;
 
       if (!year) {
         return {
@@ -229,7 +229,7 @@ export function registerStockHandlers() {
         };
       }
 
-      const data = await getOutstandingSummary(year);
+      const data = await getOutstandingSummary(year, type);
 
       return {
         success: true,
