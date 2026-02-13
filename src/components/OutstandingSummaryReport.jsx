@@ -10,17 +10,18 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [generated, setGenerated] = useState(false);
+    const [reportType, setReportType] = useState('net'); // 'gross' or 'net'
 
-    // Generate year options (last 5 years)
+    // Generate year options (last 3 years)
     const yearOptions = [];
-    for (let y = currentYear; y >= currentYear - 4; y--) {
+    for (let y = currentYear; y >= currentYear - 2; y--) {
         yearOptions.push(y);
     }
 
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const response = await window.electronAPI.getOutstandingSummary({ year: selectedYear });
+            const response = await window.electronAPI.getOutstandingSummary({ year: selectedYear, type: reportType });
 
             if (response.success) {
                 setData(response.data);
@@ -111,6 +112,25 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                         </select>
                     </div>
 
+                    {/* Report Type Toggle */}
+                    <div className="flex items-center space-x-2 bg-gray-100 p-2 rounded-md border border-gray-200">
+                        <span className={`text-sm font-medium ${reportType === 'gross' ? 'text-blue-600' : 'text-gray-500'}`}>
+                            Gross
+                        </span>
+                        <button
+                            onClick={() => setReportType(prev => prev === 'gross' ? 'net' : 'gross')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${reportType === 'net' ? 'bg-blue-600' : 'bg-gray-300'}`}
+                            title="Toggle Report Type"
+                        >
+                            <span
+                                className={`${reportType === 'net' ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                            />
+                        </button>
+                        <span className={`text-sm font-medium ${reportType === 'net' ? 'text-blue-600' : 'text-gray-500'}`}>
+                            Pending Only
+                        </span>
+                    </div>
+
                     {/* Generate Button */}
                     <button
                         onClick={handleGenerate}
@@ -139,11 +159,11 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                         <table className="min-w-full divide-y divide-blue-200 border-separate border-spacing-0">
                             <thead className="bg-blue-100 sticky top-0 z-20">
                                 <tr className="text-left text-sm font-semibold text-gray-700">
-                                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 sticky left-0 top-0 bg-blue-100 z-30">
+                                    <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 sticky left-0 top-0 bg-blue-100 z-30 w-[300px] min-w-[300px] max-w-[300px] truncate">
                                         Customer Name
                                     </th>
                                     {MONTH_NAMES.map((name, i) => (
-                                        <th key={i} className="px-3 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 min-w-[80px]">
+                                        <th key={i} className="px-3 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 min-w-[60px]">
                                             {name}
                                         </th>
                                     ))}
@@ -158,7 +178,10 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                                         key={customer.ledgerId}
                                         className={`${idx % 2 === 1 ? "bg-blue-50" : "bg-white"} hover:bg-blue-100 transition-colors group`}
                                     >
-                                        <td className={`px-3 py-2 text-sm text-gray-900 font-semibold whitespace-nowrap sticky left-0 z-10 ${idx % 2 === 1 ? "bg-blue-50" : "bg-white"} group-hover:bg-blue-100 transition-colors border-b border-blue-100`}>
+                                        <td
+                                            className={`px-3 py-2 text-sm text-gray-900 font-semibold whitespace-nowrap sticky left-0 z-10 ${idx % 2 === 1 ? "bg-blue-50" : "bg-white"} group-hover:bg-blue-100 transition-colors border-b border-blue-100 w-[300px] min-w-[300px] max-w-[300px] truncate`}
+                                            title={customer.ledgerName}
+                                        >
                                             {customer.ledgerName}
                                         </td>
                                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
@@ -189,7 +212,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                             {/* Monthly Totals Footer */}
                             <tfoot className="sticky bottom-0 z-20">
                                 <tr className="bg-blue-200 font-bold border-t-2 border-blue-300">
-                                    <td className="px-3 py-3 text-sm text-gray-900 sticky left-0 bottom-0 bg-blue-200 z-30">
+                                    <td className="px-3 py-3 text-sm text-gray-900 sticky left-0 bottom-0 bg-blue-200 z-30 w-[300px] min-w-[300px] max-w-[300px] truncate">
                                         Monthly Total
                                     </td>
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
