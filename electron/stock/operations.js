@@ -550,7 +550,7 @@ export async function getPendingInvoices(params) {
         inv_TransPayment itp ON itm.TransMasterID = itp.TransMasterID
       WHERE 
         itm.CashPartyID = @ledgerId
-        AND itm.VoucherID IN (9, 13)  -- 9=Sales, 13=Estimate
+        AND itm.VoucherID = 9  -- 9=Sales
         AND itm.TransDate BETWEEN @startDate AND @asOnDate
         AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_BillwiseSettle WHERE LedgerID = @ledgerId)
         AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
@@ -802,7 +802,7 @@ export async function getOutstandingSummary(year, type = 'gross') {
           LEFT JOIN 
             dbo.inv_TransPayment itp ON itm.TransMasterID = itp.TransMasterID
           WHERE 
-            itm.VoucherID IN (9, 13) -- Sales, Estimate
+            itm.VoucherID = 9 -- Sales
             AND YEAR(itm.TransDate) = @year
             AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM dbo.acc_BillwiseSettle)
             AND itm.TransMasterID NOT IN (SELECT TransmasterID FROM dbo.acc_TransMaster WHERE VoucherID = 5 AND CNarration = 'Billwise Auto Set')
