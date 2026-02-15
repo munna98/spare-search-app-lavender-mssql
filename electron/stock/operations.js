@@ -626,6 +626,128 @@ export async function getPendingInvoices(params) {
   }
 }
 
+// Get paid invoices for a customer with closing voucher details
+export async function getPaidInvoices(params) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    const { ledgerId, startDate, endDate } = params;
+
+    console.log(`Fetching paid invoices for LedgerID: ${ledgerId}, Date range: ${startDate} to ${endDate}`);
+
+    const request = stockPool.request();
+    request.timeout = 30000;
+    request.input('ledgerId', sql.Int, ledgerId);
+    request.input('startDate', sql.Date, startDate);
+    request.input('endDate', sql.Date, endDate);
+
+    // Get invoices that have payments (from inv_TransPayment)
+    const result = await request.query(`
+      SELECT 
+        itm.TransMasterID,
+        itm.VoucherNo AS InvoiceNo,
+        itm.TransDate,
+        itm.GrandTotal AS InvoiceAmount,
+        ISNULL(SUM(itp.Amount), 0) AS PaidAmount,
+        -- Get the most recent settlement transaction ID
+        MAX(itp.ATransmasterID) AS SettlementTransMasterID
+      FROM 
+        inv_TransMaster itm
+      INNER JOIN 
+        inv_TransPayment itp ON itm.TransMasterID = itp.TransMasterID
+      WHERE 
+        itm.CashPartyID = @ledgerId
+        AND itm.VoucherID = 9  -- Sales
+        AND itm.TransDate BETWEEN @startDate AND @endDate
+      GROUP BY 
+        itm.TransMasterID,
+        itm.VoucherNo,
+        itm.TransDate,
+        itm.GrandTotal
+      ORDER BY 
+        itm.TransDate DESC
+    `);
+
+    console.log(`Found ${result.recordset.length} paid invoices`);
+
+    // For each paid invoice, get the settlement voucher details
+    const invoicesWithSettlement = await Promise.all(result.recordset.map(async (row) => {
+      let closingVoucherNo = '';
+      let voucherName = '';
+      let voucherId = null;
+
+      if (row.SettlementTransMasterID) {
+        const settlementRequest = stockPool.request();
+        settlementRequest.timeout = 30000;
+        settlementRequest.input('settlementTransMasterID', sql.Int, row.SettlementTransMasterID);
+
+        const settlementResult = await settlementRequest.query(`
+          SELECT 
+            atm.Prefix + CAST(atm.VoucherNo AS varchar) + atm.Suffix AS ClosingVoucherNo,
+            cv.VoucherName,
+            cv.VoucherID
+          FROM acc_TransMaster atm
+          LEFT JOIN core_Voucher cv ON atm.VoucherID = cv.VoucherID
+          WHERE atm.TransMasterID = @settlementTransMasterID
+        `);
+
+        if (settlementResult.recordset.length > 0) {
+          const settlement = settlementResult.recordset[0];
+          closingVoucherNo = settlement.ClosingVoucherNo || '';
+          voucherName = settlement.VoucherName || '';
+          voucherId = settlement.VoucherID;
+        }
+      }
+
+      return {
+        transMasterId: row.TransMasterID,
+        invoiceNo: row.InvoiceNo || '',
+        transDate: row.TransDate,
+        invoiceAmount: row.InvoiceAmount || 0,
+        paidAmount: row.PaidAmount || 0,
+        closingVoucherNo: closingVoucherNo,
+        voucherName: voucherName,
+        voucherId: voucherId
+      };
+    }));
+
+    return invoicesWithSettlement;
+
+  } catch (error) {
+    console.error('Error fetching paid invoices:', error);
+
+    // Try to reconnect on error
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    throw error;
+  }
+}
+
 // Get all brands
 export async function getBrands() {
   let stockPool = getStockPool();

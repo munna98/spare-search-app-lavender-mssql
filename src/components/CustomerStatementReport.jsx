@@ -12,9 +12,10 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
     const [endDate, setEndDate] = useState('');
     const [transactions, setTransactions] = useState([]);
     const [pendingInvoices, setPendingInvoices] = useState([]);
+    const [paidInvoices, setPaidInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [loadingCustomers, setLoadingCustomers] = useState(true);
-    const [activeTab, setActiveTab] = useState('statement'); // 'statement' or 'pending'
+    const [activeTab, setActiveTab] = useState('statement'); // 'statement', 'pending', or 'paid'
 
     // Load customers on component mount
     useEffect(() => {
@@ -87,6 +88,18 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
             } else {
                 toast.error(`Failed to fetch pending invoices: ${pendingResponse.message}`);
             }
+
+            const paidResponse = await window.electronAPI.getPaidInvoices({
+                ledgerId: parseInt(ledgerId),
+                startDate: start,
+                endDate: end
+            });
+
+            if (paidResponse.success) {
+                setPaidInvoices(paidResponse.invoices);
+            } else {
+                toast.error(`Failed to fetch paid invoices: ${paidResponse.message}`);
+            }
         } catch (error) {
             toast.error(`Error generating report: ${error.message}`);
         } finally {
@@ -149,13 +162,34 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                 setPendingInvoices([]);
             }
 
-            if (statementResponse.success || pendingResponse.success) {
+            // Fetch Paid Invoices
+            const paidResponse = await window.electronAPI.getPaidInvoices({
+                ledgerId: parseInt(selectedCustomer),
+                startDate: startDate,
+                endDate: endDate
+            });
+
+            if (paidResponse.success) {
+                setPaidInvoices(paidResponse.invoices);
+                if (paidResponse.invoices.length === 0) {
+                    // Only toast if specifically looking for paid invoices
+                    if (activeTab === 'paid') {
+                        toast.info('No paid invoices found');
+                    }
+                }
+            } else {
+                toast.error(`Failed to fetch paid invoices: ${paidResponse.message}`);
+                setPaidInvoices([]);
+            }
+
+            if (statementResponse.success || pendingResponse.success || paidResponse.success) {
                 toast.success('Report updated successfully');
             }
         } catch (error) {
             toast.error(`Error generating report: ${error.message}`);
             setTransactions([]);
             setPendingInvoices([]);
+            setPaidInvoices([]);
         } finally {
             setLoading(false);
         }
@@ -298,10 +332,19 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                 >
                     Pending Invoices
                 </button>
+                <button
+                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'paid'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    onClick={() => setActiveTab('paid')}
+                >
+                    Paid Invoices
+                </button>
             </div>
 
             {/* Report Header for Print */}
-            {(activeTab === 'statement' ? transactions.length > 0 : pendingInvoices.length > 0) && (
+            {(activeTab === 'statement' ? transactions.length > 0 : activeTab === 'pending' ? pendingInvoices.length > 0 : paidInvoices.length > 0) && (
                 <div className="hidden print:block mb-6">
                     {/* Main Banner Image */}
                     <img
@@ -319,7 +362,7 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                         </div>
                         <div className="text-right">
                             <h2 className="text-xl font-bold mb-1">
-                                {activeTab === 'statement' ? 'CUSTOMER STATEMENT' : 'PENDING INVOICES'}
+                                {activeTab === 'statement' ? 'CUSTOMER STATEMENT' : activeTab === 'pending' ? 'PENDING INVOICES' : 'PAID INVOICES'}
                             </h2>
                             <p className="text-sm font-medium">
                                 <span className="text-gray-600">Period:</span> {formatDate(startDate)} - {formatDate(endDate)}
@@ -422,7 +465,7 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                         <p className="text-gray-500 text-lg">Select a customer and date range to generate the statement</p>
                     </div>
                 )
-            ) : (
+            ) : activeTab === 'pending' ? (
                 pendingInvoices.length > 0 ? (
                     <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
                         <div className="overflow-x-auto">
@@ -519,6 +562,88 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                     <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
                         <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                         <p className="text-gray-500 text-lg">Select a customer and date range to show pending invoices</p>
+                    </div>
+                )
+            ) : (
+                paidInvoices.length > 0 ? (
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50 print:bg-gray-100">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            S No
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Invoice No
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Date
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Invoice Amount
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Paid Amount
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                            Closing Voucher
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {paidInvoices.map((invoice, index) => (
+                                        <tr key={invoice.transMasterId} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {index + 1}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {invoice.invoiceNo}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {formatDate(invoice.transDate)}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {formatCurrency(invoice.invoiceAmount)}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                {formatCurrency(invoice.paidAmount)}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                                {invoice.closingVoucherNo ? `${invoice.closingVoucherNo}-${invoice.voucherName}` : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Totals Section */}
+                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300 print:bg-transparent">
+                            <div className="flex justify-end px-4 py-3">
+                                <div className="flex items-center gap-8">
+                                    <div className="text-sm text-gray-900">
+                                        Total:
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.invoiceAmount, 0))}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0))}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        {/* Empty cells for Closing Voucher and Voucher Name columns */}
+                                    </div>
+                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
+                        <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500 text-lg">Select a customer and date range to show paid invoices</p>
                     </div>
                 )
             )}

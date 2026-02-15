@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoices, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Get all parties (customers and suppliers)
@@ -208,6 +208,36 @@ export function registerStockHandlers() {
       };
     } catch (error) {
       console.error('Pending invoices handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        invoices: []
+      };
+    }
+  });
+
+  // Get paid invoices with closing voucher details
+  ipcMain.handle('stock:getPaidInvoices', async (event, params) => {
+    try {
+      const { ledgerId, startDate, endDate } = params;
+
+      if (!ledgerId) {
+        return {
+          success: false,
+          message: 'Ledger ID is required',
+          invoices: []
+        };
+      }
+
+      const invoices = await getPaidInvoices(params);
+
+      return {
+        success: true,
+        invoices,
+        message: `Retrieved ${invoices.length} paid invoice(s)`
+      };
+    } catch (error) {
+      console.error('Paid invoices handler error:', error);
       return {
         success: false,
         message: error.message,
