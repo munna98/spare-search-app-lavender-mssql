@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export default function PendingChequeAlerts() {
     const [alerts, setAlerts] = useState([]);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     useEffect(() => {
         loadAlerts();
@@ -35,6 +36,24 @@ export default function PendingChequeAlerts() {
 
     if (alerts.length === 0) return null;
 
+    if (isMinimized) {
+        return (
+            <div
+                className="bg-yellow-50 border-l-4 border-yellow-400 py-1.5 px-3 mb-2 rounded-r-md shadow-sm flex items-center justify-between cursor-pointer hover:bg-yellow-100 transition-colors"
+                onClick={() => setIsMinimized(false)}
+                title="Click to expand"
+            >
+                <div className="flex items-center">
+                    <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500" aria-hidden="true" />
+                    <span className="ml-2 text-sm font-medium text-yellow-800">
+                        {alerts.length} pending {alerts.length === 1 ? 'cheque requires' : 'cheques require'} attention
+                    </span>
+                </div>
+                <span className="text-xs text-yellow-600 font-medium px-2 py-0.5 rounded-md bg-yellow-100 hover:bg-yellow-200 transition-colors">View</span>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded-r-md shadow-sm">
             <div className="flex">
@@ -42,9 +61,22 @@ export default function PendingChequeAlerts() {
                     <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
                 </div>
                 <div className="ml-3 w-full">
-                    <h3 className="text-sm font-medium text-yellow-800">
-                        Pending Cheques Attention Required ({alerts.length})
-                    </h3>
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-sm font-medium text-yellow-800">
+                            Pending Cheques Attention Required ({alerts.length})
+                        </h3>
+                        <div className="ml-4 flex-shrink-0 flex">
+                            <button
+                                type="button"
+                                className="inline-flex rounded-md bg-yellow-50 text-yellow-500 hover:text-yellow-600 focus:outline-none"
+                                onClick={() => setIsMinimized(true)}
+                                title="Minimize"
+                            >
+                                <span className="sr-only">Minimize</span>
+                                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                        </div>
+                    </div>
                     <div className="mt-2 text-sm text-yellow-700">
                         <div className="flex flex-col gap-1">
                             {alerts.map((alert) => {
