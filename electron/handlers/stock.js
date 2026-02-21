@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoices, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoicesList, searchPaidInvoiceByNumber, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Get all parties (customers and suppliers)
@@ -229,15 +229,47 @@ export function registerStockHandlers() {
         };
       }
 
-      const invoices = await getPaidInvoices(params);
+      const invoices = await getPaidInvoicesList(params);
+      console.log(`[IPC DEBUG] Returning ${invoices.length} invoices to frontend`);
+      invoices.forEach((inv, i) => {
+        console.log(`[IPC DEBUG] Invoice ${i}: No ${inv.invoiceNo}, Paid ${inv.paidAmount}, Voucher ${inv.closingVoucherNo}`);
+      });
 
       return {
         success: true,
         invoices,
-        message: `Retrieved ${invoices.length} paid invoice(s)`
+        message: `Retrieved ${invoices.length} payment record(s)`
       };
     } catch (error) {
       console.error('Paid invoices handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        invoices: []
+      };
+    }
+  });
+
+  // Search paid invoice by invoice number
+  ipcMain.handle('stock:searchPaidInvoiceByNumber', async (event, invoiceNo) => {
+    try {
+      if (!invoiceNo) {
+        return {
+          success: false,
+          message: 'Invoice number is required',
+          invoices: []
+        };
+      }
+
+      const invoices = await searchPaidInvoiceByNumber(invoiceNo);
+
+      return {
+        success: true,
+        invoices,
+        message: `Retrieved ${invoices.length} payment record(s)`
+      };
+    } catch (error) {
+      console.error('Search paid invoice handler error:', error);
       return {
         success: false,
         message: error.message,

@@ -16,6 +16,9 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
     const [loading, setLoading] = useState(false);
     const [loadingCustomers, setLoadingCustomers] = useState(true);
     const [activeTab, setActiveTab] = useState('statement'); // 'statement', 'pending', or 'paid'
+    const [paidSearchMode, setPaidSearchMode] = useState('customer'); // 'customer' or 'invoice'
+    const [invoiceSearchNo, setInvoiceSearchNo] = useState('');
+    const [searchingInvoice, setSearchingInvoice] = useState(false);
 
     // Load customers on component mount
     useEffect(() => {
@@ -27,6 +30,11 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
         if (drillDownParams) {
             setStartDate(drillDownParams.startDate);
             setEndDate(drillDownParams.endDate);
+            if (drillDownParams.reportType === 'net') {
+                setActiveTab('pending');
+            } else if (drillDownParams.reportType === 'gross') {
+                setActiveTab('statement');
+            }
         } else {
             setEndDate(today.toISOString().split('T')[0]);
             setStartDate(today.toISOString().split('T')[0]);
@@ -192,6 +200,33 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
             setPaidInvoices([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Handle search by invoice number
+    const handleInvoiceSearch = async () => {
+        if (!invoiceSearchNo) {
+            toast.error('Please enter an invoice number');
+            return;
+        }
+
+        setSearchingInvoice(true);
+        try {
+            const response = await window.electronAPI.searchPaidInvoiceByNumber(parseInt(invoiceSearchNo));
+            if (response.success) {
+                setPaidInvoices(response.invoices);
+                if (response.invoices.length === 0) {
+                    toast.info('No payment records found for this invoice');
+                }
+            } else {
+                toast.error(`Search failed: ${response.message}`);
+                setPaidInvoices([]);
+            }
+        } catch (error) {
+            toast.error(`Error searching invoice: ${error.message}`);
+            setPaidInvoices([]);
+        } finally {
+            setSearchingInvoice(false);
         }
     };
 
@@ -565,87 +600,144 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
                     </div>
                 )
             ) : (
-                paidInvoices.length > 0 ? (
-                    <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50 print:bg-gray-100">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            S No
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            Invoice No
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            Date
-                                        </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            Invoice Amount
-                                        </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            Paid Amount
-                                        </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                            Closing Voucher
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {paidInvoices.map((invoice, index) => (
-                                        <tr key={invoice.transMasterId} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {index + 1}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {invoice.invoiceNo}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {formatDate(invoice.transDate)}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                                {formatCurrency(invoice.invoiceAmount)}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 text-right">
-                                                {formatCurrency(invoice.paidAmount)}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                {invoice.closingVoucherNo ? `${invoice.closingVoucherNo}-${invoice.voucherName}` : '-'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                <>
+                    {/* Search Mode Toggle */}
+                    <div className="bg-white rounded-lg shadow-md p-4 mb-4 print:hidden">
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700">Search by:</label>
+                                <div className="flex bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${paidSearchMode === 'customer'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                            }`}
+                                        onClick={() => setPaidSearchMode('customer')}
+                                    >
+                                        Customer & Date
+                                    </button>
+                                    <button
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${paidSearchMode === 'invoice'
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                            }`}
+                                        onClick={() => setPaidSearchMode('invoice')}
+                                    >
+                                        Invoice No
+                                    </button>
+                                </div>
+                            </div>
+                            {paidSearchMode === 'invoice' && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={invoiceSearchNo}
+                                        onChange={(e) => setInvoiceSearchNo(e.target.value)}
+                                        placeholder="Enter Invoice Number"
+                                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-48"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && invoiceSearchNo) {
+                                                handleInvoiceSearch();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={handleInvoiceSearch}
+                                        disabled={!invoiceSearchNo || searchingInvoice}
+                                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {searchingInvoice ? 'Searching...' : 'Search'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
+                    </div>
+                    {paidInvoices.length > 0 ? (
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden print:shadow-none print:rounded-none">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50 print:bg-gray-100">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                S No
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                Invoice No
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                Date
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                Invoice Amount
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                Paid Amount
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                                Closing Voucher
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {paidInvoices.map((invoice, index) => (
+                                            <tr key={`${invoice.transMasterId}-${invoice.closingVoucherNo}-${index}`} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {invoice.invoiceNo}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {formatDate(invoice.transDate)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {formatCurrency(invoice.invoiceAmount)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                    {formatCurrency(invoice.paidAmount)}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                                    {invoice.closingVoucherNo ? `${invoice.closingVoucherNo}-${invoice.voucherName}` : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
 
-                        {/* Totals Section */}
-                        <div className="bg-gray-100 font-bold border-t-2 border-gray-300 print:bg-transparent">
-                            <div className="flex justify-end px-4 py-3">
-                                <div className="flex items-center gap-8">
-                                    <div className="text-sm text-gray-900">
-                                        Total:
-                                    </div>
-                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
-                                        {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.invoiceAmount, 0))}
-                                    </div>
-                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
-                                        {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0))}
-                                    </div>
-                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
-                                        {/* Empty cells for Closing Voucher and Voucher Name columns */}
-                                    </div>
-                                    <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                            {/* Totals Section */}
+                            <div className="bg-gray-100 font-bold border-t-2 border-gray-300 print:bg-transparent">
+                                <div className="flex justify-end px-4 py-3">
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-sm text-gray-900">
+                                            Total:
+                                        </div>
+                                        <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                            {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.invoiceAmount, 0))}
+                                        </div>
+                                        <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                            {formatCurrency(paidInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0))}
+                                        </div>
+                                        <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                            {/* Empty cells for Closing Voucher and Voucher Name columns */}
+                                        </div>
+                                        <div className="text-sm text-gray-900 text-right min-w-[100px]">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
-                        <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-500 text-lg">Select a customer and date range to show paid invoices</p>
-                    </div>
-                )
+                    ) : (
+                        <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
+                            <DocumentTextIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                            <p className="text-gray-500 text-lg">
+                                {paidSearchMode === 'invoice'
+                                    ? 'Enter an invoice number and click Search'
+                                    : 'Select a customer and date range to show paid invoices'}
+                            </p>
+                        </div>
+                    )}
+                </>
             )}
 
             <style jsx>{`

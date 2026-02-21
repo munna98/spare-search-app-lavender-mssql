@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCustomerStatement: (params) => ipcRenderer.invoke('stock:getCustomerStatement', params),
   getPendingInvoices: (params) => ipcRenderer.invoke('stock:getPendingInvoices', params),
   getPaidInvoices: (params) => ipcRenderer.invoke('stock:getPaidInvoices', params),
+  searchPaidInvoiceByNumber: (invoiceNo) => ipcRenderer.invoke('stock:searchPaidInvoiceByNumber', invoiceNo),
   getBrands: () => ipcRenderer.invoke('stock:getBrands'),
   updateProduct: (params) => ipcRenderer.invoke('stock:updateProduct', params),
   getAllParties: () => ipcRenderer.invoke('stock:getAllParties'),

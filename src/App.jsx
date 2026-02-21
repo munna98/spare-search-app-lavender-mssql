@@ -151,19 +151,31 @@ export default function App() {
       <>
         <ToastContainer position="top-right" autoClose={3000} />
         <UpdateNotification />
-        <OutstandingSummaryReport
-          onBack={() => setShowOutstandingSummary(false)}
-          onDrillDown={(params) => {
-            setDrillDownParams(params);
-            setShowOutstandingSummary(false);
-            setShowCustomerStatement(true);
-          }}
-        />
+        {/* We keep OutstandingSummaryReport mounted but visually hidden when showing CustomerStatementReport from a drill down */}
+        <div style={{ display: showCustomerStatement ? 'none' : 'block' }}>
+          <OutstandingSummaryReport
+            onBack={() => setShowOutstandingSummary(false)}
+            onDrillDown={(params) => {
+              setDrillDownParams(params);
+              setShowCustomerStatement(true);
+            }}
+          />
+        </div>
+        {showCustomerStatement && (
+          <CustomerStatementReport
+            onBack={() => {
+              setShowCustomerStatement(false);
+              setDrillDownParams(null);
+            }}
+            drillDownParams={drillDownParams}
+          />
+        )}
       </>
     );
   }
 
-  if (showCustomerStatement) {
+  // Only show standalone CustomerStatementReport if not accessed via drill down
+  if (showCustomerStatement && !showOutstandingSummary) {
     return (
       <>
         <ToastContainer position="top-right" autoClose={3000} />

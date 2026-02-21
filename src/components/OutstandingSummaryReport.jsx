@@ -11,6 +11,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
     const [loading, setLoading] = useState(false);
     const [generated, setGenerated] = useState(false);
     const [reportType, setReportType] = useState('net'); // 'gross' or 'net'
+    const [clickedCell, setClickedCell] = useState(null); // { ledgerId, month }
 
     // Generate year options (last 3 years)
     const yearOptions = [];
@@ -48,6 +49,8 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
         const amount = customer.months[month];
         if (!amount) return;
 
+        setClickedCell({ ledgerId: customer.ledgerId, month });
+
         // Calculate start and end date for the clicked month
         const startDate = `${selectedYear}-${String(month).padStart(2, '0')}-01`;
         const lastDay = new Date(selectedYear, month, 0).getDate();
@@ -59,7 +62,8 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                 ledgerId: customer.ledgerId,
                 ledgerName: customer.ledgerName,
                 startDate,
-                endDate
+                endDate,
+                reportType
             });
         }
     };
@@ -187,17 +191,16 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
                                             const amount = customer.months[month];
                                             const hasValue = amount && Math.abs(amount) > 0.01;
+                                            const isClicked = clickedCell?.ledgerId === customer.ledgerId && clickedCell?.month === month;
                                             return (
                                                 <td
                                                     key={month}
-                                                    className={`px-3 py-2 text-sm text-right whitespace-nowrap border-b border-blue-100 ${
-                                                        /* hasValue
+                                                    className={`px-3 py-2 text-sm text-right whitespace-nowrap border-b border-blue-100 ${hasValue
                                                         ? 'cursor-pointer hover:bg-blue-200 hover:text-blue-800 font-medium'
-                                                        : 'text-gray-400' */
-                                                        hasValue ? 'font-medium' : 'text-gray-400'
-                                                        } ${amount && amount < 0 ? 'text-red-600' : 'text-blue-600'}`}
-                                                /* onClick={() => hasValue && handleCellClick(customer, month)} */
-                                                /* title={hasValue ? `Click to view ${customer.ledgerName}'s ${MONTH_NAMES[month - 1]} ${selectedYear} transactions` : ''} */
+                                                        : 'text-gray-400'
+                                                        } ${amount && amount < 0 ? 'text-red-600' : 'text-blue-600'} ${isClicked ? 'bg-blue-200 text-blue-800 font-medium ring-2 ring-blue-400 z-10 relative' : ''}`}
+                                                    onClick={() => hasValue && handleCellClick(customer, month)}
+                                                    title={hasValue ? `Click to view ${customer.ledgerName}'s ${MONTH_NAMES[month - 1]} ${selectedYear} transactions` : ''}
                                                 >
                                                     {hasValue ? formatCurrency(amount) : '-'}
                                                 </td>
