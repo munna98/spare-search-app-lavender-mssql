@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeftIcon, DocumentTextIcon, PlayIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, DocumentTextIcon, PlayIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -12,6 +12,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
     const [generated, setGenerated] = useState(false);
     const [reportType, setReportType] = useState('net'); // 'gross' or 'net'
     const [clickedCell, setClickedCell] = useState(null); // { ledgerId, month }
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Generate year options (last 3 years)
     const yearOptions = [];
@@ -73,13 +74,17 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
         return amount.toFixed(2);
     };
 
-    // Calculate monthly totals
+    const filteredData = data.filter(customer =>
+        customer.ledgerName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Calculate monthly totals based on filtered data
     const monthlyTotals = {};
     let grandTotal = 0;
     for (let m = 1; m <= 12; m++) {
-        monthlyTotals[m] = data.reduce((sum, c) => sum + (c.months[m] || 0), 0);
+        monthlyTotals[m] = filteredData.reduce((sum, c) => sum + (c.months[m] || 0), 0);
     }
-    grandTotal = data.reduce((sum, c) => sum + c.total, 0);
+    grandTotal = filteredData.reduce((sum, c) => sum + c.total, 0);
 
     return (
         <div className="p-6 max-w-[1400px] mx-auto print:p-0 print:max-w-none">
@@ -148,6 +153,32 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                             </div>
                         )}
                     </button>
+
+                    {/* Customer Search */}
+                    <div className="flex-1 min-w-[250px]">
+                        <label className="block text-sm font-semibold mb-1 text-gray-700">
+                            Customer
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search customer name..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full px-4 py-2 pr-10 border rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                                    title="Clear search"
+                                >
+                                    <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -157,7 +188,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                 <div className="flex justify-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
-            ) : data.length > 0 ? (
+            ) : filteredData.length > 0 ? (
                 <div className="shadow-sm border-2 border-blue-200 rounded-lg bg-blue-50 mt-4 overflow-hidden">
                     <div className="overflow-auto max-h-[calc(100vh-220px)]">
                         <table className="min-w-full divide-y divide-blue-200 border-separate border-spacing-0">
@@ -177,7 +208,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-blue-100">
-                                {data.map((customer, idx) => (
+                                {filteredData.map((customer, idx) => (
                                     <tr
                                         key={customer.ledgerId}
                                         className={`${idx % 2 === 1 ? "bg-blue-50" : "bg-white"} hover:bg-blue-100 transition-colors group`}
@@ -237,7 +268,11 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
             ) : generated ? (
                 <div className="bg-white rounded-lg shadow-md p-12 text-center mt-4">
                     <MagnifyingGlassIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500 text-lg">No outstanding balances found for {selectedYear}</p>
+                    <p className="text-gray-500 text-lg">
+                        {searchQuery
+                            ? `No customers matching "${searchQuery}" found`
+                            : `No outstanding balances found for ${selectedYear}`}
+                    </p>
                 </div>
             ) : (
                 <div className="bg-white rounded-lg shadow-md p-12 text-center mt-4">

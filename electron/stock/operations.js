@@ -1020,6 +1020,12 @@ export async function getOutstandingSummary(year, type = 'gross') {
             itm.CashPartyID,
             itm.TransDate,
             itm.GrandTotal
+          HAVING 
+            (itm.GrandTotal 
+              - ISNULL(SUM(itp.Amount), 0) 
+              - ISNULL((SELECT SUM(rt.GrandTotal) FROM dbo.inv_TransMaster rt WHERE rt.VoucherID = 11 AND (rt.RTransID = itm.TransMasterID OR rt.ReturnMasterID = itm.TransMasterID)), 0)
+              - ISNULL((SELECT SUM(atd.Discount) FROM dbo.acc_TransDetails atd WHERE atd.TransID = itm.TransMasterID), 0)
+            ) > 0
         ) AS Invoices
         INNER JOIN 
           dbo.acc_Ledger l ON Invoices.CashPartyID = l.LedgerID
