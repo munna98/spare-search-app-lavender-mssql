@@ -7,6 +7,7 @@ import {
     ArrowTrendingDownIcon,
     ChevronDownIcon,
     FunnelIcon,
+    MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 
@@ -14,12 +15,14 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
     const [loading, setLoading] = useState(false);
     const [history, setHistory] = useState([]);
     const [filter, setFilter] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
     const [visibleCount, setVisibleCount] = useState(20);
 
     useEffect(() => {
         if (isOpen && productId) {
             loadStockHistory();
             setFilter('all');
+            setSearchTerm('');
             setVisibleCount(20);
         }
     }, [isOpen, productId]);
@@ -73,10 +76,9 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
     };
 
     const filteredHistory = history.filter(item => {
-        if (filter === 'all') return true;
-        if (filter === 'in') return item.stockIn > 0;
-        if (filter === 'out') return item.stockOut > 0;
-        return true;
+        const matchesType = filter === 'all' || (filter === 'in' ? item.stockIn > 0 : item.stockOut > 0);
+        const matchesSearch = !searchTerm || (item.partyName || '').toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesType && matchesSearch;
     });
 
     const visibleHistory = filteredHistory.slice(0, visibleCount);
@@ -120,32 +122,54 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-4">
 
-                        {/* Filter Buttons */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                <FunnelIcon className="h-4 w-4 inline mr-2" />
-                                Filter Transactions
-                            </label>
-                            <div className="flex gap-2">
-                                {[
-                                    { value: 'all', label: 'All Transactions' },
-                                    { value: 'in', label: 'Stock In' },
-                                    { value: 'out', label: 'Stock Out' }
-                                ].map((option) => (
-                                    <button
-                                        key={option.value}
-                                        onClick={() => {
-                                            setFilter(option.value);
+                        {/* Filter and Search */}
+                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                            {/* Filter Buttons */}
+                            <div className="flex-1">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    <FunnelIcon className="h-4 w-4 inline mr-2" />
+                                    Filter Transactions
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { value: 'all', label: 'All Transactions' },
+                                        { value: 'in', label: 'Stock In' },
+                                        { value: 'out', label: 'Stock Out' }
+                                    ].map((option) => (
+                                        <button
+                                            key={option.value}
+                                            onClick={() => {
+                                                setFilter(option.value);
+                                                setVisibleCount(20);
+                                            }}
+                                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${filter === option.value
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Search Bar */}
+                            <div className="w-full sm:w-64">
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search customer..."
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
                                             setVisibleCount(20);
                                         }}
-                                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${filter === option.value
-                                            ? 'bg-blue-600 text-white shadow-md'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                    >
-                                        {option.label}
-                                    </button>
-                                ))}
+                                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm transition-all focus:shadow-md"
+                                    />
+                                </div>
                             </div>
                         </div>
 
