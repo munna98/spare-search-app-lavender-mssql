@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoicesList, searchPaidInvoiceByNumber, getBrands, updateProductDetails, getAllParties, getOutstandingSummary } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoicesList, searchPaidInvoiceByNumber, getBrands, updateProductDetails, getAllParties, getOutstandingSummary, getDailyTransactions } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Get all parties (customers and suppliers)
@@ -304,6 +304,44 @@ export function registerStockHandlers() {
         success: false,
         message: error.message,
         data: []
+      };
+    }
+  });
+
+  // Get daily transactions (Sales/Purchase + Returns)
+  ipcMain.handle('stock:getDailyTransactions', async (event, params) => {
+    try {
+      const { startDate, endDate, type } = params;
+
+      if (!startDate || !endDate) {
+        return {
+          success: false,
+          message: 'Start date and end date are required',
+          transactions: []
+        };
+      }
+
+      if (!type || !['sale', 'purchase'].includes(type)) {
+        return {
+          success: false,
+          message: 'Type must be "sale" or "purchase"',
+          transactions: []
+        };
+      }
+
+      const transactions = await getDailyTransactions(params);
+
+      return {
+        success: true,
+        transactions,
+        message: `Retrieved ${transactions.length} transaction(s)`
+      };
+    } catch (error) {
+      console.error('Daily transactions handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        transactions: []
       };
     }
   });

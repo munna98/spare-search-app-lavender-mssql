@@ -1100,3 +1100,101 @@ export async function getOutstandingSummary(year, type = 'gross') {
     throw error;
   }
 }
+
+// Get daily transactions (Sales/Purchase + Returns)
+export async function getDailyTransactions(params) {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    console.log('Stock pool not connected, attempting to reconnect...');
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        throw new Error('Stock database not connected');
+      }
+    } else {
+      throw new Error('Stock database not configured');
+    }
+  }
+
+  try {
+    const { startDate, endDate, type = 'sale' } = params;
+
+    // Determine VoucherIDs based on type
+    let mainVoucherId, returnVoucherId, mainLabel, returnLabel;
+    if (type === 'purchase') {
+      mainVoucherId = 10;    // Purchase
+      returnVoucherId = 12;  // Purchase Return
+      mainLabel = 'Purchase Invoice';
+      returnLabel = 'Purchase Return';
+    } else {
+      mainVoucherId = 9;     // Sales
+      returnVoucherId = 11;  // Sales Return
+      mainLabel = 'Sales Invoice';
+      returnLabel = 'Sales Return';
+    }
+
+    console.log(`Fetching daily transactions: type=${type}, range=${startDate} to ${endDate}`);
+
+    const request = stockPool.request();
+    request.timeout = 30000;
+    request.input('startDate', sql.Date, startDate);
+    request.input('endDate', sql.Date, endDate);
+    request.input('mainVoucherId', sql.Int, mainVoucherId);
+    request.input('returnVoucherId', sql.Int, returnVoucherId);
+
+    const result = await request.query(`
+      SELECT
+        ROW_NUMBER() OVER (ORDER BY itm.TransDate, itm.TransMasterID) AS SNo,
+        itm.TransMasterID,
+        itm.VoucherNo,
+        itm.VoucherID AS VoucherTypeID,
+        itm.GrandTotal,
+        ISNULL(al.LedgerName, 'N/A') AS PartyName,
+        (SELECT COUNT(*) FROM dbo.inv_TransDetails itd WHERE itd.TransMasterID = itm.TransMasterID) AS ItemCount
+      FROM
+        dbo.inv_TransMaster itm
+      LEFT JOIN
+        dbo.acc_Ledger al ON itm.CashPartyID = al.LedgerID
+      WHERE
+        itm.VoucherID IN (@mainVoucherId, @returnVoucherId)
+        AND itm.TransDate BETWEEN @startDate AND @endDate
+      ORDER BY
+        itm.TransDate, itm.TransMasterID
+    `);
+
+    console.log(`Found ${result.recordset.length} daily transactions`);
+
+    return result.recordset.map(row => ({
+      sNo: row.SNo,
+      transMasterId: row.TransMasterID,
+      transDate: row.TransDate,
+      voucherNo: row.VoucherNo,
+      voucherType: Number(row.VoucherTypeID) === mainVoucherId ? mainLabel : returnLabel,
+      isReturn: Number(row.VoucherTypeID) === returnVoucherId,
+      grandTotal: row.GrandTotal || 0,
+      partyName: row.PartyName,
+      itemCount: row.ItemCount || 0
+    }));
+
+  } catch (error) {
+    console.error('Error fetching daily transactions:', error);
+
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      console.log('Connection error detected, attempting to reconnect...');
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+
+    throw error;
+  }
+}

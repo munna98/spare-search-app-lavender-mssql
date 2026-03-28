@@ -8,10 +8,12 @@ import {
   CogIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 const NAV_ITEMS = [
   { key: 'search', label: 'Search', icon: MagnifyingGlassIcon },
+  { key: 'dailyTransactions', label: 'Daily Transactions', icon: ClipboardDocumentListIcon },
   { key: 'outstandingSummary', label: 'Outstanding Summary', icon: TableCellsIcon },
   { key: 'customerStatement', label: 'Customer Statement', icon: ChartBarIcon },
   { key: 'chequeManagement', label: 'Cheque Management', icon: BanknotesIcon },

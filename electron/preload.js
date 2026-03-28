@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateProduct: (params) => ipcRenderer.invoke('stock:updateProduct', params),
   getAllParties: () => ipcRenderer.invoke('stock:getAllParties'),
   getOutstandingSummary: (params) => ipcRenderer.invoke('stock:getOutstandingSummary', params),
+  getDailyTransactions: (params) => ipcRenderer.invoke('stock:getDailyTransactions', params),
 
   // Cheque Management
   getCheques: (filters) => ipcRenderer.invoke('cheques:getAll', filters),

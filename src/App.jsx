@@ -12,6 +12,7 @@ import CustomerStatementReport from './components/CustomerStatementReport';
 import ChequeManagement from './components/ChequeManagement';
 import PendingChequeAlerts from './components/PendingChequeAlerts';
 import OutstandingSummaryReport from './components/OutstandingSummaryReport';
+import DailyTransactionsReport from './components/DailyTransactionsReport';
 import Sidebar, { useSidebarState } from './components/Sidebar';
 
 export default function App() {
@@ -145,6 +146,9 @@ export default function App() {
         return (
           <Settings onReconfigure={handleReconfigure} />
         );
+
+      case 'dailyTransactions':
+        return <DailyTransactionsReport />;
 
       case 'outstandingSummary':
         return (
