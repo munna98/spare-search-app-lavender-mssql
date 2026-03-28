@@ -257,13 +257,15 @@ export default function CustomerStatementReport({ onBack, drillDownParams }) {
             {/* Header */}
             <div className="flex justify-between items-center mb-4 print:hidden">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={onBack}
-                        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-                        title="Back"
-                    >
-                        <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
-                    </button>
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+                            title="Back to Outstanding Summary"
+                        >
+                            <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
+                        </button>
+                    )}
                     <h1 className="text-3xl font-bold text-gray-900">Customer Statement Report</h1>
                 </div>
 

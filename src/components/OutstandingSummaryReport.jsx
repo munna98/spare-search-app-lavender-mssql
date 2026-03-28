@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeftIcon, DocumentTextIcon, PlayIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PlayIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
+export default function OutstandingSummaryReport({ onDrillDown }) {
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [data, setData] = useState([]);
@@ -90,16 +90,7 @@ export default function OutstandingSummaryReport({ onBack, onDrillDown }) {
         <div className="p-6 max-w-[1400px] mx-auto print:p-0 print:max-w-none">
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onBack}
-                        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-                        title="Back"
-                    >
-                        <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
-                    </button>
-                    <h1 className="text-3xl font-bold text-gray-900">Outstanding Balance Summary</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-gray-900">Outstanding Balance Summary</h1>
             </div>
 
             {/* Filters */}

@@ -1,7 +1,6 @@
 // src/components/Settings.jsx
 import React, { useState, useEffect } from "react";
 import {
-  ArrowLeftIcon,
   ServerIcon,
   QrCodeIcon,
   CubeIcon
@@ -11,7 +10,7 @@ import DatabaseConfigModal from './DatabaseConfigModal';
 import StockDatabaseConfig from './StockDatabaseConfig';
 import BarcodeConfiguration from './BarcodeConfiguration';
 
-export default function Settings({ onBack, onReconfigure }) {
+export default function Settings({ onReconfigure }) {
   const [dbConfig, setDbConfig] = useState(null);
   const [stockDbConfig, setStockDbConfig] = useState(null);
   const [showDbConfig, setShowDbConfig] = useState(false);
@@ -55,15 +54,7 @@ export default function Settings({ onBack, onReconfigure }) {
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <button
-            onClick={onBack}
-            className="mr-4 p-2 rounded-md hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
 
         <div className="flex gap-2">
           <button

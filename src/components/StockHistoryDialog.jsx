@@ -161,7 +161,7 @@ export default function StockHistoryDialog({ isOpen, onClose, partNumber, produc
                                     </div>
                                     <input
                                         type="text"
-                                        placeholder="Search customer..."
+                                        placeholder="Search party..."
                                         value={searchTerm}
                                         onChange={(e) => {
                                             setSearchTerm(e.target.value);

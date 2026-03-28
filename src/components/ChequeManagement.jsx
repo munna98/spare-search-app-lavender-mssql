@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    ArrowLeftIcon,
     PlusIcon,
     MinusIcon,
     PencilIcon,
@@ -25,7 +24,7 @@ const TRANSACTION_TYPES = [
     { value: 'Given', label: 'Given (To Supplier)', color: 'text-purple-600' }
 ];
 
-export default function ChequeManagement({ onBack }) {
+export default function ChequeManagement() {
     const [cheques, setCheques] = useState([]);
     const [parties, setParties] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -264,16 +263,7 @@ export default function ChequeManagement({ onBack }) {
         <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onBack}
-                        className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-                        title="Back"
-                    >
-                        <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
-                    </button>
-                    <h1 className="text-3xl font-bold text-gray-900">Cheque Management</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-gray-900">Cheque Management</h1>
 
                 <div className="flex gap-2">
                     {Object.values(filters).some(v => v !== '') && (

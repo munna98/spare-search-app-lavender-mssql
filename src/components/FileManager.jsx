@@ -1,7 +1,6 @@
 // src/components/FileManager.jsx
 import React, { useState, useEffect } from "react";
 import {
-  ArrowLeftIcon,
   DocumentArrowDownIcon,
   TrashIcon,
   DocumentIcon,
@@ -9,7 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { toast } from 'react-toastify';
 
-export default function FileManager({ onBack }) {
+export default function FileManager() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -99,22 +98,14 @@ export default function FileManager({ onBack }) {
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center">
-          <button
-            onClick={onBack}
-            className="mr-4 p-2 rounded-md hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <FolderOpenIcon className="h-8 w-8 mr-3 text-green-600" />
-              File Manager
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Import and manage your spare parts Excel files
-            </p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <FolderOpenIcon className="h-8 w-8 mr-3 text-green-600" />
+            File Manager
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Import and manage your spare parts Excel files
+          </p>
         </div>
       </div>
 

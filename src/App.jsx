@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { ChartBarIcon, CogIcon, FolderOpenIcon, BanknotesIcon, TableCellsIcon } from "@heroicons/react/24/outline";
 import PartSearchForm from "./components/PartSearchForm";
 import RecentSearches from "./components/RecentSearches";
 import SearchResults from "./components/SearchResults";
@@ -13,22 +12,22 @@ import CustomerStatementReport from './components/CustomerStatementReport';
 import ChequeManagement from './components/ChequeManagement';
 import PendingChequeAlerts from './components/PendingChequeAlerts';
 import OutstandingSummaryReport from './components/OutstandingSummaryReport';
+import Sidebar, { useSidebarState } from './components/Sidebar';
 
 export default function App() {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState([]);
   const [results, setResults] = useState({ cerobiz: [], files: [] });
   const [loading, setLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showFileManager, setShowFileManager] = useState(false);
-  const [showCustomerStatement, setShowCustomerStatement] = useState(false);
-  const [showChequeManagement, setShowChequeManagement] = useState(false);
-  const [showOutstandingSummary, setShowOutstandingSummary] = useState(false);
+  const [activePage, setActivePage] = useState('search');
   const [drillDownParams, setDrillDownParams] = useState(null);
+  const [drillDownActive, setDrillDownActive] = useState(false);
   const [dbConfigured, setDbConfigured] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [checkingConfig, setCheckingConfig] = useState(true);
   const [showReconfigureWizard, setShowReconfigureWizard] = useState(false);
+
+  const sidebarCollapsed = useSidebarState();
 
   useEffect(() => {
     checkDatabaseConfig();
@@ -37,7 +36,6 @@ export default function App() {
       setDbConfigured(status.configured);
       setDbConnected(status.connected);
 
-      // Only show error toast if there's an actual error after initial setup
       if (status.configured && !status.connected && status.error && !checkingConfig) {
         toast.error(`Database connection issue: ${status.error}`);
       }
@@ -68,11 +66,19 @@ export default function App() {
 
   const handleReconfigure = () => {
     setShowReconfigureWizard(true);
-    setShowSettings(false);
+    setActivePage('search');
+  };
+
+  const handleNavigate = (page) => {
+    // Reset drill-down state when navigating away
+    if (page !== 'outstandingSummary' && page !== 'customerStatement') {
+      setDrillDownParams(null);
+      setDrillDownActive(false);
+    }
+    setActivePage(page);
   };
 
   const handleSearch = async (partNumber, searchMode = 'contains') => {
-    // Clear results if search is empty
     if (!partNumber.trim()) {
       setQuery("");
       setResults({ cerobiz: [], files: [] });
@@ -94,9 +100,6 @@ export default function App() {
 
       if (response.success) {
         setResults(response.results);
-
-        const totalResults = (response.results.cerobiz?.length || 0) + (response.results.files?.length || 0);
-        // Removed the "No results found" toast
       } else {
         toast.error(`Search error: ${response.message}`);
         setResults({ cerobiz: [], files: [] });
@@ -109,6 +112,7 @@ export default function App() {
     }
   };
 
+  // Loading state
   if (checkingConfig) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -120,6 +124,7 @@ export default function App() {
     );
   }
 
+  // Database setup wizard (no sidebar)
   if (!dbConfigured || showReconfigureWizard) {
     return (
       <>
@@ -133,149 +138,88 @@ export default function App() {
     );
   }
 
-  if (showSettings) {
-    return (
-      <>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <UpdateNotification />
-        <Settings
-          onBack={() => setShowSettings(false)}
-          onReconfigure={handleReconfigure}
-        />
-      </>
-    );
-  }
+  // Render the active page content
+  const renderPageContent = () => {
+    switch (activePage) {
+      case 'settings':
+        return (
+          <Settings onReconfigure={handleReconfigure} />
+        );
 
-  if (showOutstandingSummary) {
-    return (
-      <>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <UpdateNotification />
-        {/* We keep OutstandingSummaryReport mounted but visually hidden when showing CustomerStatementReport from a drill down */}
-        <div style={{ display: showCustomerStatement ? 'none' : 'block' }}>
-          <OutstandingSummaryReport
-            onBack={() => setShowOutstandingSummary(false)}
-            onDrillDown={(params) => {
-              setDrillDownParams(params);
-              setShowCustomerStatement(true);
-            }}
-          />
-        </div>
-        {showCustomerStatement && (
+      case 'outstandingSummary':
+        return (
+          <>
+            {/* Keep OutstandingSummaryReport always mounted, hide during drill-down to preserve state */}
+            <div style={{ display: drillDownActive ? 'none' : 'block' }}>
+              <OutstandingSummaryReport
+                onDrillDown={(params) => {
+                  setDrillDownParams(params);
+                  setDrillDownActive(true);
+                }}
+              />
+            </div>
+            {drillDownActive && (
+              <CustomerStatementReport
+                onBack={() => {
+                  setDrillDownActive(false);
+                  setDrillDownParams(null);
+                }}
+                drillDownParams={drillDownParams}
+              />
+            )}
+          </>
+        );
+
+      case 'customerStatement':
+        return (
           <CustomerStatementReport
-            onBack={() => {
-              setShowCustomerStatement(false);
-              setDrillDownParams(null);
-            }}
             drillDownParams={drillDownParams}
           />
-        )}
-      </>
-    );
-  }
+        );
 
-  // Only show standalone CustomerStatementReport if not accessed via drill down
-  if (showCustomerStatement && !showOutstandingSummary) {
-    return (
-      <>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <UpdateNotification />
-        <CustomerStatementReport
-          onBack={() => {
-            setShowCustomerStatement(false);
-            setDrillDownParams(null);
-          }}
-          drillDownParams={drillDownParams}
-        />
-      </>
-    );
-  }
+      case 'chequeManagement':
+        return <ChequeManagement />;
 
-  if (showChequeManagement) {
-    return (
-      <>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <UpdateNotification />
-        <ChequeManagement onBack={() => setShowChequeManagement(false)} />
-      </>
-    );
-  }
+      case 'fileManager':
+        return <FileManager />;
 
-  if (showFileManager) {
-    return (
-      <>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <UpdateNotification />
-        <FileManager onBack={() => setShowFileManager(false)} />
-      </>
-    );
-  }
+      case 'search':
+      default:
+        return (
+          <div className="p-6 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
+            </div>
+
+            <PendingChequeAlerts />
+
+            <PartSearchForm onSearch={handleSearch} currentQuery={query} />
+            <RecentSearches items={recent} onSelect={(term) => {
+              setQuery(term);
+              handleSearch(term);
+            }} />
+
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+              </div>
+            ) : (
+              <SearchResults results={results} query={query} />
+            )}
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="min-h-screen p-24 pt-0 bg-gray-50">
-      <UpdateNotification />
+    <div className="app-layout">
+      <Sidebar activePage={activePage} onNavigate={handleNavigate} />
 
-      <div className="p-6 max-w-6xl mx-auto">
+      <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
+        <UpdateNotification />
         <ToastContainer position="top-right" autoClose={3000} />
-
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Spare parts search</h1>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowOutstandingSummary(true)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
-              title="Outstanding Balance Summary"
-            >
-              <TableCellsIcon className="h-5 w-5 text-gray-600" />
-            </button>
-            <button
-              onClick={() => setShowCustomerStatement(true)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
-              title="Customer Statement Report"
-            >
-              <ChartBarIcon className="h-5 w-5 text-gray-600" />
-            </button>
-            <button
-              onClick={() => setShowFileManager(true)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
-              title="Manage uploaded files"
-            >
-              <FolderOpenIcon className="h-5 w-5 text-gray-600" />
-            </button>
-            <button
-              onClick={() => setShowChequeManagement(true)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
-              title="Cheque Management"
-            >
-              <BanknotesIcon className="h-5 w-5 text-gray-600" />
-            </button>
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm flex items-center gap-2 hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-[0.98]"
-            >
-              <CogIcon className="h-5 w-5 text-gray-600" />
-            </button>
-          </div>
-        </div>
-
-        <PendingChequeAlerts />
-
-        <PartSearchForm onSearch={handleSearch} currentQuery={query} />
-        <RecentSearches items={recent} onSelect={(term) => {
-          setQuery(term);
-          handleSearch(term);
-        }} />
-
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
-          </div>
-        ) : (
-          <SearchResults results={results} query={query} />
-        )}
-      </div>
+        {renderPageContent()}
+      </main>
     </div>
   );
 }
