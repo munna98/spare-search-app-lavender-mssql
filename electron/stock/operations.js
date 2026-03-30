@@ -1151,11 +1151,12 @@ export async function getDailyTransactions(params) {
       SELECT
         ROW_NUMBER() OVER (ORDER BY itm.TransDate, itm.TransMasterID) AS SNo,
         itm.TransMasterID,
+        itm.TransDate,
         itm.VoucherNo,
+        itm.RefNo, -- Added for reference number
         itm.VoucherID AS VoucherTypeID,
         itm.GrandTotal,
-        ISNULL(al.LedgerName, 'N/A') AS PartyName,
-        (SELECT COUNT(*) FROM dbo.inv_TransDetails itd WHERE itd.TransMasterID = itm.TransMasterID) AS ItemCount
+        ISNULL(al.LedgerName, 'N/A') AS PartyName
       FROM
         dbo.inv_TransMaster itm
       LEFT JOIN
@@ -1174,11 +1175,11 @@ export async function getDailyTransactions(params) {
       transMasterId: row.TransMasterID,
       transDate: row.TransDate,
       voucherNo: row.VoucherNo,
+      refNo: row.RefNo,
       voucherType: Number(row.VoucherTypeID) === mainVoucherId ? mainLabel : returnLabel,
       isReturn: Number(row.VoucherTypeID) === returnVoucherId,
       grandTotal: row.GrandTotal || 0,
-      partyName: row.PartyName,
-      itemCount: row.ItemCount || 0
+      partyName: row.PartyName
     }));
 
   } catch (error) {

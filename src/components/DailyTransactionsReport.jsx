@@ -166,25 +166,6 @@ export default function DailyTransactionsReport() {
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            {hasGenerated && !loading && transactions.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 print:hidden">
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{mainLabel}</p>
-                        <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(summary.mainTotal)}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{summary.mainCount} invoice(s)</p>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{returnLabel}</p>
-                        <p className="text-2xl font-bold text-red-500 mt-1">{formatCurrency(summary.returnTotal)}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{summary.returnCount} return(s)</p>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-md p-4">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(summary.mainTotal - summary.returnTotal)}</p>
-                    </div>
-                </div>
-            )}
 
             {/* Print Header */}
             {transactions.length > 0 && (
@@ -231,13 +212,10 @@ export default function DailyTransactionsReport() {
                                         Voucher No
                                     </th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                        Party Name
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                         Type
                                     </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                        Items
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
+                                        Party Name
                                     </th>
                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                         Amount
@@ -254,16 +232,20 @@ export default function DailyTransactionsReport() {
                                             {formatDate(transaction.transDate)}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                                            {transaction.voucherNo}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">
-                                            {transaction.partyName}
+                                            <div className="flex flex-col">
+                                                <span>{transaction.voucherNo || '-'}</span>
+                                                {transaction.refNo && type === 'purchase' && (
+                                                    <span className="text-xs text-gray-700 font-medium">
+                                                        {transaction.refNo}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                                             {transaction.voucherType}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-500 text-center">
-                                            {transaction.itemCount}
+                                        <td className="px-4 py-3 text-sm text-gray-900">
+                                            {transaction.partyName}
                                         </td>
                                         <td className={`px-4 py-3 text-sm font-medium text-right ${
                                             transaction.isReturn ? 'text-red-600' : 'text-gray-900'
