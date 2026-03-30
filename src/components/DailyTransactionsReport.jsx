@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { DocumentTextIcon, PlayIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
-import printHeader from '../assets/print-header.png';
 
 export default function DailyTransactionsReport() {
     const today = new Date().toISOString().split('T')[0];
@@ -167,15 +166,29 @@ export default function DailyTransactionsReport() {
             </div>
 
 
+            {/* Summary Cards */}
+            {hasGenerated && !loading && transactions.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 print:hidden">
+                    <div className="bg-white rounded-lg shadow-md p-4">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{mainLabel}</p>
+                        <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(summary.mainTotal)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{summary.mainCount} invoice(s)</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{returnLabel}</p>
+                        <p className="text-2xl font-bold text-red-500 mt-1">{formatCurrency(summary.returnTotal)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{summary.returnCount} return(s)</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4">
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</p>
+                        <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(summary.mainTotal - summary.returnTotal)}</p>
+                    </div>
+                </div>
+            )}
+
             {/* Print Header */}
             {transactions.length > 0 && (
                 <div className="hidden print:block mb-6">
-                    <img
-                        src={printHeader}
-                        alt="Header"
-                        className="w-full h-auto mb-4"
-                        onError={(e) => e.target.style.display = 'none'}
-                    />
                     <div className="flex justify-between items-end mb-4 border-b-2 border-gray-800 pb-2">
                         <div className="text-left">
                             <p className="text-sm text-gray-600 font-medium">Report Type:</p>
