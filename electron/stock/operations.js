@@ -1153,7 +1153,8 @@ export async function getDailyTransactions(params) {
         itm.TransMasterID,
         itm.TransDate,
         itm.VoucherNo,
-        itm.RefNo, -- Added for reference number
+        itm.RefNo, 
+        itm_orig.VoucherNo AS RelatedVNo,
         itm.VoucherID AS VoucherTypeID,
         itm.GrandTotal,
         ISNULL(al.LedgerName, 'N/A') AS PartyName
@@ -1161,6 +1162,8 @@ export async function getDailyTransactions(params) {
         dbo.inv_TransMaster itm
       LEFT JOIN
         dbo.acc_Ledger al ON itm.CashPartyID = al.LedgerID
+      LEFT JOIN
+        dbo.inv_TransMaster itm_orig ON itm.RTransID = itm_orig.TransMasterID
       WHERE
         itm.VoucherID IN (@mainVoucherId, @returnVoucherId)
         AND itm.TransDate BETWEEN @startDate AND @endDate
@@ -1175,6 +1178,7 @@ export async function getDailyTransactions(params) {
       transMasterId: row.TransMasterID,
       transDate: row.TransDate,
       voucherNo: row.VoucherNo,
+      relatedVNo: row.RelatedVNo, // Added relatedVNo
       refNo: row.RefNo,
       voucherType: Number(row.VoucherTypeID) === mainVoucherId ? mainLabel : returnLabel,
       isReturn: Number(row.VoucherTypeID) === returnVoucherId,

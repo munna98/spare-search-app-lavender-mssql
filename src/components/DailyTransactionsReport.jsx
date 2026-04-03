@@ -246,7 +246,14 @@ export default function DailyTransactionsReport() {
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                                             <div className="flex flex-col">
-                                                <span>{transaction.voucherNo || '-'}</span>
+                                                <span>
+                                                    {transaction.voucherNo || '-'}
+                                                    {transaction.relatedVNo ? (
+                                                        <span className="text-xs ml-1 font-normal text-gray-600 italic">
+                                                            ({transaction.relatedVNo})
+                                                        </span>
+                                                    ) : ''}
+                                                </span>
                                                 {transaction.refNo && type === 'purchase' && (
                                                     <span className="text-xs text-gray-700 font-medium">
                                                         {transaction.refNo}
