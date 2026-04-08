@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DocumentTextIcon, PlayIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PlayIcon, ClipboardDocumentListIcon, ChevronUpIcon, ChevronDownIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 
 export default function DailyTransactionsReport() {
@@ -11,6 +11,7 @@ export default function DailyTransactionsReport() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hasGenerated, setHasGenerated] = useState(false);
+    const [sortPartyName, setSortPartyName] = useState('none'); // 'none', 'asc', 'desc'
 
     const handleGenerateReport = async () => {
         if (!startDate || !endDate) {
@@ -50,6 +51,20 @@ export default function DailyTransactionsReport() {
             setLoading(false);
         }
     };
+
+    const displayedTransactions = React.useMemo(() => {
+        if (sortPartyName === 'none') return transactions;
+        
+        return [...transactions].sort((a, b) => {
+            const nameA = (a.partyName || '').toLowerCase();
+            const nameB = (b.partyName || '').toLowerCase();
+            if (sortPartyName === 'asc') {
+                return nameA.localeCompare(nameB);
+            } else {
+                return nameB.localeCompare(nameA);
+            }
+        });
+    }, [transactions, sortPartyName]);
 
     const handlePrint = () => {
         window.print();
@@ -227,8 +242,23 @@ export default function DailyTransactionsReport() {
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                         Type
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
-                                        Party Name
+                                    <th 
+                                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700 cursor-pointer hover:bg-gray-100 group select-none"
+                                        onClick={() => {
+                                            if (sortPartyName === 'none') setSortPartyName('asc');
+                                            else if (sortPartyName === 'asc') setSortPartyName('desc');
+                                            else setSortPartyName('none');
+                                        }}
+                                        title="Click to sort by Party Name"
+                                    >
+                                        <div className="flex items-center gap-1">
+                                            Party Name
+                                            <span className="text-gray-400 group-hover:text-gray-600 print:hidden">
+                                                {sortPartyName === 'asc' ? <ChevronUpIcon className="w-4 h-4" /> : 
+                                                 sortPartyName === 'desc' ? <ChevronDownIcon className="w-4 h-4" /> : 
+                                                 <ArrowsUpDownIcon className="w-4 h-4" />}
+                                            </span>
+                                        </div>
                                     </th>
                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                         Amount
@@ -236,10 +266,10 @@ export default function DailyTransactionsReport() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {transactions.map((transaction) => (
+                                {displayedTransactions.map((transaction, index) => (
                                     <tr key={transaction.transMasterId} className="hover:bg-gray-50">
                                         <td className="px-4 py-3 text-sm text-gray-900">
-                                            {transaction.sNo}
+                                            {index + 1}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-900">
                                             {formatDate(transaction.transDate)}
