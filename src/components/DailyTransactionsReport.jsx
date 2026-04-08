@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { DocumentTextIcon, PlayIcon, ClipboardDocumentListIcon, ChevronUpIcon, ChevronDownIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, PlayIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import SearchableSelect from './SearchableSelect';
 import { toast } from 'react-toastify';
 
 export default function DailyTransactionsReport() {
@@ -11,7 +12,7 @@ export default function DailyTransactionsReport() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hasGenerated, setHasGenerated] = useState(false);
-    const [sortPartyName, setSortPartyName] = useState('none'); // 'none', 'asc', 'desc'
+    const [searchParty, setSearchParty] = useState('');
 
     const handleGenerateReport = async () => {
         if (!startDate || !endDate) {
@@ -52,19 +53,15 @@ export default function DailyTransactionsReport() {
         }
     };
 
+    const uniqueParties = React.useMemo(() => {
+        const parties = new Set(transactions.map(t => t.partyName).filter(Boolean));
+        return Array.from(parties).sort();
+    }, [transactions]);
+
     const displayedTransactions = React.useMemo(() => {
-        if (sortPartyName === 'none') return transactions;
-        
-        return [...transactions].sort((a, b) => {
-            const nameA = (a.partyName || '').toLowerCase();
-            const nameB = (b.partyName || '').toLowerCase();
-            if (sortPartyName === 'asc') {
-                return nameA.localeCompare(nameB);
-            } else {
-                return nameB.localeCompare(nameA);
-            }
-        });
-    }, [transactions, sortPartyName]);
+        if (!searchParty) return transactions;
+        return transactions.filter(t => t.partyName === searchParty);
+    }, [transactions, searchParty]);
 
     const handlePrint = () => {
         window.print();
@@ -81,7 +78,7 @@ export default function DailyTransactionsReport() {
     };
 
     // Calculate summary stats
-    const summary = transactions.reduce(
+    const summary = displayedTransactions.reduce(
         (acc, t) => {
             if (t.isReturn) {
                 acc.returnCount++;
@@ -242,21 +239,18 @@ export default function DailyTransactionsReport() {
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700">
                                         Type
                                     </th>
-                                    <th 
-                                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:text-gray-700 cursor-pointer hover:bg-gray-100 group select-none"
-                                        onClick={() => {
-                                            if (sortPartyName === 'none') setSortPartyName('asc');
-                                            else if (sortPartyName === 'asc') setSortPartyName('desc');
-                                            else setSortPartyName('none');
-                                        }}
-                                        title="Click to sort by Party Name"
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Party Name
-                                            <span className="text-gray-400 group-hover:text-gray-600 print:hidden">
-                                                {sortPartyName === 'asc' ? <ChevronUpIcon className="w-4 h-4" /> : 
-                                                 sortPartyName === 'desc' ? <ChevronDownIcon className="w-4 h-4" /> : 
-                                                 <ArrowsUpDownIcon className="w-4 h-4" />}
+                                    <th className="px-4 py-3 text-left">
+                                        <div className="text-xs normal-case font-normal min-w-[200px]">
+                                            <SearchableSelect
+                                                options={[{ value: '', label: 'All Parties' }, ...uniqueParties.map(p => ({ value: p, label: p }))]}
+                                                value={searchParty}
+                                                onChange={setSearchParty}
+                                                placeholder="Party Name"
+                                                className="print:hidden w-full"
+                                                buttonClassName="bg-transparent border-none shadow-none p-0 text-xs font-medium text-gray-500 uppercase tracking-wider focus:ring-0 text-left"
+                                            />
+                                            <span className="hidden print:inline text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                                Party Name
                                             </span>
                                         </div>
                                     </th>
