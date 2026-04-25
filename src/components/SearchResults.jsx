@@ -211,27 +211,11 @@ export default function SearchResults({ results, query }) {
       {/* Cerobiz Results */}
       {cerobizResults.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center">
-              <ServerIcon className="h-5 w-5 text-green-600 mr-2" />
-              <h3 className="text-lg font-semibold text-gray-800">
-                Results from Cerobiz ({cerobizResults.length})
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCerobizCost((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-green-200 bg-white text-sm font-medium text-gray-700 hover:bg-green-100 transition-colors"
-              title={showCerobizCost ? "Hide cost column" : "Show cost column"}
-              aria-label={showCerobizCost ? "Hide cost column" : "Show cost column"}
-            >
-              {showCerobizCost ? (
-                <EyeIcon className="h-4 w-4" />
-              ) : (
-                <EyeSlashIcon className="h-4 w-4" />
-              )}
-              {showCerobizCost ? "Hide Cost" : "Show Cost"}
-            </button>
+          <div className="flex items-center mb-3">
+            <ServerIcon className="h-5 w-5 text-green-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-800">
+              Results from Cerobiz ({cerobizResults.length})
+            </h3>
           </div>
 
           <div className="overflow-x-auto shadow-sm border-2 border-green-200 rounded-lg bg-green-50">
@@ -250,9 +234,24 @@ export default function SearchResults({ results, query }) {
                   <th className="p-3 border-b border-green-200">Part Number</th>
                   <th className="p-3 border-b border-green-200">Description</th>
                   <th className="p-3 border-b border-green-200">Stock</th>
-                  {showCerobizCost && (
-                    <th className="p-3 border-b border-green-200">Cost</th>
-                  )}
+                  <th className="p-3 border-b border-green-200">
+                    <div className="flex items-center justify-between gap-2">
+                      {showCerobizCost ? <span>Cost</span> : <span className="sr-only">Cost hidden</span>}
+                      <button
+                        type="button"
+                        onClick={() => setShowCerobizCost((prev) => !prev)}
+                        className="p-1 rounded hover:bg-green-200 transition-colors"
+                        title={showCerobizCost ? "Hide cost column" : "Show cost column"}
+                        aria-label={showCerobizCost ? "Hide cost column" : "Show cost column"}
+                      >
+                        {showCerobizCost ? (
+                          <EyeIcon className="h-4 w-4" />
+                        ) : (
+                          <EyeSlashIcon className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white">
