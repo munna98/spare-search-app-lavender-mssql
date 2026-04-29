@@ -37,8 +37,8 @@ export function registerStockHandlers() {
   // Update product details
   ipcMain.handle('stock:updateProduct', async (event, params) => {
     try {
-      const { productId, brandId, remarks } = params;
-      await updateProductDetails(productId, brandId, remarks);
+      const { productId, brandId, remarks, salesRate } = params;
+      await updateProductDetails(productId, brandId, remarks, salesRate);
       return { success: true, message: 'Product updated successfully' };
     } catch (error) {
       return { success: false, message: error.message };

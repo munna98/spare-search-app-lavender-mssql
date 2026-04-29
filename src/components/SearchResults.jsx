@@ -235,7 +235,7 @@ export default function SearchResults({ results, query }) {
                   <th className="p-3 border-b border-green-200">Description</th>
                   <th className="p-3 border-b border-green-200">Stock</th>
                   <th className="p-3 border-b border-green-200">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       {showCerobizCost ? <span>Cost</span> : <span className="sr-only">Cost hidden</span>}
                       <button
                         type="button"
@@ -252,6 +252,7 @@ export default function SearchResults({ results, query }) {
                       </button>
                     </div>
                   </th>
+                  <th className="p-3 border-b border-green-200">S Rate</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -324,16 +325,21 @@ export default function SearchResults({ results, query }) {
                         )}
                       </div>
                     </td>
-                    {showCerobizCost && (
-                      <td className="p-3 border-b border-green-100">
+                    <td className="p-3 border-b border-green-100">
+                      {showCerobizCost && (
                         <button
                           onClick={(e) => handlePriceClick(e, row.cost)}
                           className="text-lg font-bold text-gray-900 rounded px-2 hover:text-green-600 hover:bg-green-200"
                         >
                           ${row.cost?.toFixed(2) || '0.00'}
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
+                    <td className="p-3 border-b border-green-100">
+                      <span className="text-lg font-bold text-gray-900 rounded px-2">
+                        ${row.salesRate?.toFixed(2) || '0.00'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

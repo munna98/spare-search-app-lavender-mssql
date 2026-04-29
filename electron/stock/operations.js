@@ -81,6 +81,7 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductCode AS partNumber,
         p.ProductName AS description,
         p.LastCost AS cost,
+        p.SalesRate,
         p.Remarks,
         b.BrandName,
         CASE 
@@ -102,6 +103,7 @@ export async function searchPartsInCerobiz(searchParams) {
         p.ProductCode,
         p.ProductName,
         p.LastCost,
+        p.SalesRate,
         p.Remarks,
         b.BrandName
       ORDER BY matchType, p.ProductCode
@@ -116,6 +118,7 @@ export async function searchPartsInCerobiz(searchParams) {
       description: row.description,
       brandName: row.BrandName,
       cost: row.cost || 0,
+      salesRate: row.SalesRate || 0,
       stockQty: row.stockQty,
       source: 'cerobiz',
       isCompatible: row.matchType === 1, // True if matched via Remarks
@@ -873,8 +876,8 @@ export async function getBrands() {
   }
 }
 
-// Update product details (Brand and Remarks)
-export async function updateProductDetails(productId, brandId, remarks) {
+// Update product details (Brand, Remarks, and SalesRate)
+export async function updateProductDetails(productId, brandId, remarks, salesRate) {
   let stockPool = getStockPool();
   const stockConfig = getStockConfig();
 
@@ -892,20 +895,27 @@ export async function updateProductDetails(productId, brandId, remarks) {
   }
 
   try {
+    const parsedSalesRate = parseFloat(salesRate);
+    console.log('[updateProductDetails] productId:', productId);
+    console.log('[updateProductDetails] salesRate raw:', salesRate, '| parsed:', parsedSalesRate);
+
     const request = stockPool.request();
     request.input('productId', sql.Int, productId);
     request.input('brandId', sql.Int, brandId);
     request.input('remarks', sql.NVarChar, remarks);
+    request.input('salesRate', sql.Numeric(18, 4), isNaN(parsedSalesRate) ? 0 : parsedSalesRate);
 
-    await request.query(`
+    const result = await request.query(`
       UPDATE dbo.inv_Product
       SET 
         BrandID = @brandId,
-        Remarks = @remarks
+        Remarks = @remarks,
+        SalesRate = @salesRate
       WHERE 
         ProductID = @productId
     `);
 
+    console.log('[updateProductDetails] rows affected:', result.rowsAffected);
     return { success: true };
   } catch (error) {
     console.error('Error updating product:', error);

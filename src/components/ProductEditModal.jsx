@@ -8,7 +8,8 @@ export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuc
     const [brands, setBrands] = useState([]);
     const [formData, setFormData] = useState({
         brandId: '',
-        remarks: ''
+        remarks: '',
+        salesRate: ''
     });
 
     useEffect(() => {
@@ -17,7 +18,8 @@ export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuc
             if (product) {
                 setFormData({
                     brandId: '',
-                    remarks: product.remarks || ''
+                    remarks: product.remarks || '',
+                    salesRate: product.salesRate || ''
                 });
             }
         }
@@ -51,7 +53,8 @@ export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuc
             const result = await window.electronAPI.updateProduct({
                 productId: product.productId,
                 brandId: formData.brandId || null,
-                remarks: formData.remarks
+                remarks: formData.remarks,
+                salesRate: formData.salesRate || 0
             });
 
             if (result.success) {
@@ -116,6 +119,21 @@ export default function ProductEditModal({ isOpen, onClose, product, onUpdateSuc
                                 onChange={(value) => setFormData({ ...formData, brandId: value })}
                                 placeholder="Select a rack..."
                                 className="w-full"
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="salesRate" className="block text-sm font-semibold text-gray-700 mb-1">
+                                Sales Rate
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                id="salesRate"
+                                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm p-2 border"
+                                value={formData.salesRate}
+                                onChange={(e) => setFormData({ ...formData, salesRate: e.target.value })}
+                                placeholder="0.00"
                             />
                         </div>
 
