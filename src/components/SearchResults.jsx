@@ -319,9 +319,13 @@ export default function SearchResults({ results, query }) {
                           {row.stockQty}
                         </button>
                         {row.brandName && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-gray-200 text-gray-900 border border-gray-300 whitespace-nowrap">
-                            {row.brandName}
-                          </span>
+                          row.brandName === 'NIL' ? (
+                            <span className="text-gray-500 font-medium px-2">-</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-gray-200 text-gray-900 border border-gray-300 whitespace-nowrap">
+                              {row.brandName}
+                            </span>
+                          )
                         )}
                       </div>
                     </td>
@@ -329,16 +333,20 @@ export default function SearchResults({ results, query }) {
                       {showCerobizCost && (
                         <button
                           onClick={(e) => handlePriceClick(e, row.cost)}
-                          className="text-lg font-bold text-gray-900 rounded px-2 hover:text-green-600 hover:bg-green-200"
+                          className="text-base font-bold text-gray-900 rounded px-2 hover:text-green-600 hover:bg-green-200"
                         >
                           ${row.cost?.toFixed(2) || '0.00'}
                         </button>
                       )}
                     </td>
                     <td className="p-3 border-b border-green-100">
-                      <span className="text-lg font-bold text-gray-900 rounded px-2">
-                        ${row.salesRate?.toFixed(2) || '0.00'}
-                      </span>
+                      {row.salesRate > 0 ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-gray-900">
+                          ${row.salesRate.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 font-medium px-2.5 py-0.5">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}

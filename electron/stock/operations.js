@@ -1166,6 +1166,7 @@ export async function getDailyTransactions(params) {
         itm.RefNo, 
         itm_orig.VoucherNo AS RelatedVNo,
         itm.VoucherID AS VoucherTypeID,
+        itm.TransType,
         itm.GrandTotal,
         ISNULL(al.LedgerName, 'N/A') AS PartyName
       FROM
@@ -1188,10 +1189,11 @@ export async function getDailyTransactions(params) {
       transMasterId: row.TransMasterID,
       transDate: row.TransDate,
       voucherNo: row.VoucherNo,
-      relatedVNo: row.RelatedVNo, // Added relatedVNo
+      relatedVNo: row.RelatedVNo,
       refNo: row.RefNo,
       voucherType: Number(row.VoucherTypeID) === mainVoucherId ? mainLabel : returnLabel,
       isReturn: Number(row.VoucherTypeID) === returnVoucherId,
+      transType: row.TransType || '',
       grandTotal: row.GrandTotal || 0,
       partyName: row.PartyName
     }));

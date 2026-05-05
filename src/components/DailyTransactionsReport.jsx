@@ -262,13 +262,13 @@ export default function DailyTransactionsReport() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {displayedTransactions.map((transaction, index) => (
                                     <tr key={transaction.transMasterId} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-900">
+                                        <td className="px-4 py-1.5 text-sm text-gray-900">
                                             {index + 1}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">
+                                        <td className="px-4 py-1.5 text-sm text-gray-900">
                                             {formatDate(transaction.transDate)}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                                        <td className="px-4 py-1.5 text-sm text-gray-900 font-medium">
                                             <div className="flex flex-col">
                                                 <span>
                                                     {transaction.voucherNo || '-'}
@@ -285,13 +285,24 @@ export default function DailyTransactionsReport() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                            {transaction.voucherType}
+                                        <td className="px-4 py-1.5 text-sm text-gray-900 whitespace-nowrap">
+                                            <div className="flex flex-col leading-tight">
+                                                <span>{transaction.voucherType}</span>
+                                                {transaction.transType && (
+                                                    <span className={`text-[10px] font-semibold ${
+                                                        transaction.transType.toLowerCase() === 'cash'
+                                                            ? 'text-green-600'
+                                                            : 'text-red-500'
+                                                    }`}>
+                                                        {transaction.transType}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">
+                                        <td className="px-4 py-1.5 text-sm text-gray-900">
                                             {transaction.partyName}
                                         </td>
-                                        <td className={`px-4 py-3 text-sm font-medium text-right ${
+                                        <td className={`px-4 py-1.5 text-sm font-medium text-right ${
                                             transaction.isReturn ? 'text-red-600' : 'text-gray-900'
                                         }`}>
                                             {transaction.isReturn ? '-' : ''}{formatCurrency(transaction.grandTotal)}
@@ -335,6 +346,18 @@ export default function DailyTransactionsReport() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Signature Footer — print only */}
+                    <div className="hidden print:flex justify-between items-end mt-6 px-4 pb-2">
+                        <div className="text-center w-56">
+                            <div className="border-b-2 border-gray-700 mb-2" style={{ height: '40px' }}></div>
+                            <p className="text-sm font-semibold text-gray-800 tracking-wide">Prepared By</p>
+                        </div>
+                        <div className="text-center w-56">
+                            <div className="border-b-2 border-gray-700 mb-2" style={{ height: '40px' }}></div>
+                            <p className="text-sm font-semibold text-gray-800 tracking-wide">Verified By</p>
+                        </div>
+                    </div>
                 </div>
             ) : hasGenerated ? (
                 <div className="bg-white rounded-lg shadow-md p-12 text-center print:shadow-none">
@@ -376,6 +399,10 @@ export default function DailyTransactionsReport() {
                     tr {
                         page-break-inside: avoid;
                         page-break-after: auto;
+                    }
+                    .signature-footer {
+                        page-break-inside: avoid;
+                        break-inside: avoid;
                     }
                 }
             `}</style>
