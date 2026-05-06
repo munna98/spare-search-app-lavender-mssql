@@ -289,7 +289,7 @@ export default function DailyTransactionsReport() {
                                             <div className="flex flex-col leading-tight">
                                                 <span>{transaction.voucherType}</span>
                                                 {transaction.transType && (
-                                                    <span className={`text-[10px] font-semibold ${
+                                                    <span className={`text-xs font-semibold ${
                                                         transaction.transType.toLowerCase() === 'cash'
                                                             ? 'text-green-600'
                                                             : 'text-red-500'
