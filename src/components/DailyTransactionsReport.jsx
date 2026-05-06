@@ -13,6 +13,7 @@ export default function DailyTransactionsReport() {
     const [loading, setLoading] = useState(false);
     const [hasGenerated, setHasGenerated] = useState(false);
     const [searchParty, setSearchParty] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const handleGenerateReport = async () => {
         if (!startDate || !endDate) {
@@ -58,11 +59,6 @@ export default function DailyTransactionsReport() {
         return Array.from(parties).sort();
     }, [transactions]);
 
-    const displayedTransactions = React.useMemo(() => {
-        if (!searchParty) return transactions;
-        return transactions.filter(t => t.partyName === searchParty);
-    }, [transactions, searchParty]);
-
     const handlePrint = () => {
         window.print();
     };
@@ -76,6 +72,58 @@ export default function DailyTransactionsReport() {
     const formatCurrency = (amount) => {
         return amount.toFixed(2);
     };
+
+    const highlightText = (text, highlight) => {
+        if (!text && text !== 0) return text;
+        if (!highlight) return text;
+        
+        const textStr = String(text);
+        const parts = textStr.split(new RegExp(`(${highlight})`, 'gi'));
+        return (
+            <span>
+                {parts.map((part, i) => 
+                    part.toLowerCase() === highlight.toLowerCase() ? (
+                        <span key={i} className="bg-yellow-300 font-medium text-gray-900 rounded-sm px-0.5">{part}</span>
+                    ) : (
+                        part
+                    )
+                )}
+            </span>
+        );
+    };
+
+    const displayedTransactions = React.useMemo(() => {
+        let filtered = transactions;
+        
+        if (searchParty) {
+            filtered = filtered.filter(t => t.partyName === searchParty);
+        }
+
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            filtered = filtered.filter(t => {
+                const voucherStr = t.voucherNo ? t.voucherNo.toString().toLowerCase() : '';
+                const relatedVNoStr = t.relatedVNo ? t.relatedVNo.toString().toLowerCase() : '';
+                const refNoStr = t.refNo ? t.refNo.toString().toLowerCase() : '';
+                const typeStr = t.voucherType ? t.voucherType.toLowerCase() : '';
+                const transTypeStr = t.transType ? t.transType.toLowerCase() : '';
+                const partyStr = t.partyName ? t.partyName.toLowerCase() : '';
+                const formattedAmtStr = ((t.isReturn ? '-' : '') + formatCurrency(t.grandTotal)).toLowerCase();
+                const dateStr = t.transDate ? formatDate(t.transDate).toLowerCase() : '';
+
+                return voucherStr.includes(lowerTerm) ||
+                       relatedVNoStr.includes(lowerTerm) ||
+                       refNoStr.includes(lowerTerm) ||
+                       typeStr.includes(lowerTerm) ||
+                       transTypeStr.includes(lowerTerm) ||
+                       partyStr.includes(lowerTerm) ||
+                       formattedAmtStr.includes(lowerTerm) ||
+                       dateStr.includes(lowerTerm);
+            });
+        }
+        
+        return filtered;
+    }, [transactions, searchParty, searchTerm]);
 
     // Calculate summary stats
     const summary = displayedTransactions.reduce(
@@ -104,15 +152,34 @@ export default function DailyTransactionsReport() {
                     <h1 className="text-3xl font-bold text-gray-900">Daily Transactions</h1>
                 </div>
 
-                {transactions.length > 0 && (
-                    <button
-                        onClick={handlePrint}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    >
-                        <DocumentTextIcon className="h-5 w-5" />
-                        Print
-                    </button>
-                )}
+                <div className="flex items-center gap-4">
+                    {hasGenerated && !loading && transactions.length > 0 && (
+                        <div className="relative w-64">
+                            <input
+                                type="text"
+                                placeholder="Search in results..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {transactions.length > 0 && (
+                        <button
+                            onClick={handlePrint}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                        >
+                            <DocumentTextIcon className="h-5 w-5" />
+                            Print
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}
@@ -266,46 +333,46 @@ export default function DailyTransactionsReport() {
                                             {index + 1}
                                         </td>
                                         <td className="px-4 py-1.5 text-sm text-gray-900">
-                                            {formatDate(transaction.transDate)}
+                                            {highlightText(formatDate(transaction.transDate), searchTerm)}
                                         </td>
                                         <td className="px-4 py-1.5 text-sm text-gray-900 font-medium">
                                             <div className="flex flex-col">
                                                 <span>
-                                                    {transaction.voucherNo || '-'}
+                                                    {highlightText(transaction.voucherNo || '-', searchTerm)}
                                                     {transaction.relatedVNo ? (
                                                         <span className="text-xs ml-1 font-normal text-gray-600 italic">
-                                                            ({transaction.relatedVNo})
+                                                            ({highlightText(transaction.relatedVNo, searchTerm)})
                                                         </span>
                                                     ) : ''}
                                                 </span>
                                                 {transaction.refNo && type === 'purchase' && (
                                                     <span className="text-xs text-gray-700 font-medium">
-                                                        {transaction.refNo}
+                                                        {highlightText(transaction.refNo, searchTerm)}
                                                     </span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-4 py-1.5 text-sm text-gray-900 whitespace-nowrap">
                                             <div className="flex flex-col leading-tight">
-                                                <span>{transaction.voucherType}</span>
+                                                <span>{highlightText(transaction.voucherType, searchTerm)}</span>
                                                 {transaction.transType && (
                                                     <span className={`text-xs font-semibold ${
                                                         transaction.transType.toLowerCase() === 'cash'
                                                             ? 'text-green-600'
                                                             : 'text-red-500'
                                                     }`}>
-                                                        {transaction.transType}
+                                                        {highlightText(transaction.transType, searchTerm)}
                                                     </span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-4 py-1.5 text-sm text-gray-900">
-                                            {transaction.partyName}
+                                            {highlightText(transaction.partyName, searchTerm)}
                                         </td>
                                         <td className={`px-4 py-1.5 text-sm font-medium text-right ${
                                             transaction.isReturn ? 'text-red-600' : 'text-gray-900'
                                         }`}>
-                                            {transaction.isReturn ? '-' : ''}{formatCurrency(transaction.grandTotal)}
+                                            {highlightText((transaction.isReturn ? '-' : '') + formatCurrency(transaction.grandTotal), searchTerm)}
                                         </td>
                                     </tr>
                                 ))}
