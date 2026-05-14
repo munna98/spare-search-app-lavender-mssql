@@ -2,7 +2,7 @@
 import { ipcMain } from 'electron';
 import { testStockConnection, initializeStockDatabase, getStockPool } from '../stock/connection.js';
 import { loadStockConfig, saveStockConfig } from '../database/config.js';
-import { getStockHistory, getCustomerLedgers, getCustomerStatement, getPendingInvoices, getPaidInvoicesList, searchPaidInvoiceByNumber, getBrands, updateProductDetails, getAllParties, getOutstandingSummary, getDailyTransactions } from '../stock/operations.js';
+import { getStockHistory, getCustomerLedgers, getStaffLedgers, getSalesPartiesByInvoiceNos, getCustomerStatement, getPendingInvoices, getPaidInvoicesList, searchPaidInvoiceByNumber, getBrands, updateProductDetails, getAllParties, getOutstandingSummary, getDailyTransactions } from '../stock/operations.js';
 
 export function registerStockHandlers() {
   // Get all parties (customers and suppliers)
@@ -144,6 +144,43 @@ export function registerStockHandlers() {
         success: false,
         message: error.message,
         ledgers: []
+      };
+    }
+  });
+
+  ipcMain.handle('stock:getStaffLedgers', async () => {
+    try {
+      const ledgers = await getStaffLedgers();
+      return {
+        success: true,
+        ledgers,
+        message: `Retrieved ${ledgers.length} staff ledger(s)`
+      };
+    } catch (error) {
+      console.error('Staff ledgers handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        ledgers: []
+      };
+    }
+  });
+
+  ipcMain.handle('stock:getSalesPartiesByInvoiceNos', async (event, invoiceNos) => {
+    try {
+      const list = Array.isArray(invoiceNos) ? invoiceNos : [];
+      const partyByInvoice = await getSalesPartiesByInvoiceNos(list);
+      return {
+        success: true,
+        partyByInvoice,
+        message: 'OK'
+      };
+    } catch (error) {
+      console.error('Sales parties by invoice handler error:', error);
+      return {
+        success: false,
+        message: error.message,
+        partyByInvoice: {}
       };
     }
   });

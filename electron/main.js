@@ -10,6 +10,7 @@ import { loadConfig, loadStockConfig } from './database/config.js';
 import { registerDatabaseHandlers } from './handlers/database.js';
 import { registerStockHandlers } from './handlers/stock.js';
 import { registerChequeHandlers } from './handlers/cheques.js';
+import { registerCollectionHandlers } from './handlers/collections.js';
 import { registerFileHandlers } from './handlers/files.js';
 import { registerNetworkHandlers } from './handlers/network.js';
 import { registerUpdateHandlers } from './handlers/updates.js';
@@ -122,6 +123,7 @@ app.whenReady().then(async () => {
   registerDatabaseHandlers(window);
   registerStockHandlers();
   registerChequeHandlers();
+  registerCollectionHandlers();
   registerFileHandlers(window);
   registerNetworkHandlers();
   registerUpdateHandlers();

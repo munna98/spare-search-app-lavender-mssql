@@ -9,11 +9,13 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
 const NAV_ITEMS = [
   { key: 'search', label: 'Search', icon: MagnifyingGlassIcon },
   { key: 'dailyTransactions', label: 'Daily Transactions', icon: ClipboardDocumentListIcon },
+  { key: 'dailyCollection', label: 'Daily Collection', icon: CurrencyDollarIcon },
   { key: 'outstandingSummary', label: 'Outstanding Summary', icon: TableCellsIcon },
   { key: 'customerStatement', label: 'Customer Statement', icon: ChartBarIcon },
   { key: 'chequeManagement', label: 'Cheque Management', icon: BanknotesIcon },

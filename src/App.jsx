@@ -13,6 +13,7 @@ import ChequeManagement from './components/ChequeManagement';
 import PendingChequeAlerts from './components/PendingChequeAlerts';
 import OutstandingSummaryReport from './components/OutstandingSummaryReport';
 import DailyTransactionsReport from './components/DailyTransactionsReport';
+import DailyCollection from './components/DailyCollection';
 import Sidebar, { useSidebarState } from './components/Sidebar';
 
 export default function App() {
@@ -146,6 +147,9 @@ export default function App() {
         return (
           <Settings onReconfigure={handleReconfigure} />
         );
+
+      case 'dailyCollection':
+        return <DailyCollection />;
 
       case 'dailyTransactions':
         return <DailyTransactionsReport />;

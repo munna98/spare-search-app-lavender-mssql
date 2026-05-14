@@ -170,6 +170,52 @@ export async function initializeDatabase(config) {
     `);
 
     await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='staff_collections' AND xtype='U')
+      CREATE TABLE staff_collections (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        collection_date DATE NOT NULL,
+        staff_ledger_id INT NOT NULL,
+        staff_name NVARCHAR(255) NOT NULL,
+        customer_ledger_id INT NOT NULL,
+        customer_name NVARCHAR(255) NOT NULL,
+        payment_mode NVARCHAR(20) NOT NULL CHECK (payment_mode IN ('Cash', 'Card', 'Cheque')),
+        amount DECIMAL(18, 2) NOT NULL,
+        invoice_no NVARCHAR(50) NOT NULL,
+        status NVARCHAR(20) NOT NULL CHECK (status IN ('Pending', 'Posted')),
+        posted_at DATETIME NULL,
+        created_at DATETIME DEFAULT GETDATE(),
+        updated_at DATETIME DEFAULT GETDATE()
+      )
+    `);
+
+    await pool.request().query(`
+      IF EXISTS (SELECT * FROM sysobjects WHERE name='staff_collections' AND xtype='U')
+      BEGIN
+        IF COL_LENGTH('dbo.staff_collections', 'customer_ledger_id') IS NULL
+          ALTER TABLE dbo.staff_collections ADD customer_ledger_id INT NULL;
+        IF COL_LENGTH('dbo.staff_collections', 'customer_name') IS NULL
+          ALTER TABLE dbo.staff_collections ADD customer_name NVARCHAR(255) NULL;
+      END
+    `);
+
+    await pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_staff_collections_collection_date' AND object_id = OBJECT_ID('staff_collections'))
+      CREATE INDEX idx_staff_collections_collection_date ON staff_collections(collection_date);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_staff_collections_status' AND object_id = OBJECT_ID('staff_collections'))
+      CREATE INDEX idx_staff_collections_status ON staff_collections(status);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_staff_collections_staff_ledger_id' AND object_id = OBJECT_ID('staff_collections'))
+      CREATE INDEX idx_staff_collections_staff_ledger_id ON staff_collections(staff_ledger_id);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_staff_collections_payment_mode' AND object_id = OBJECT_ID('staff_collections'))
+      CREATE INDEX idx_staff_collections_payment_mode ON staff_collections(payment_mode);
+
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_staff_collections_customer_ledger_id' AND object_id = OBJECT_ID('staff_collections'))
+      CREATE INDEX idx_staff_collections_customer_ledger_id ON staff_collections(customer_ledger_id);
+    `);
+
+    await pool.request().query(`
       IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='idx_cheques_party_ledger_id' AND object_id = OBJECT_ID('cheques'))
       CREATE INDEX idx_cheques_party_ledger_id ON cheques(party_ledger_id);
 

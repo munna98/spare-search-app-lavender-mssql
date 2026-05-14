@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getStockHistory: (params) => ipcRenderer.invoke('stock:getHistory', params),
   getCustomerLedgers: () => ipcRenderer.invoke('stock:getCustomerLedgers'),
+  getStaffLedgers: () => ipcRenderer.invoke('stock:getStaffLedgers'),
+  getSalesPartiesByInvoiceNos: (invoiceNos) =>
+    ipcRenderer.invoke('stock:getSalesPartiesByInvoiceNos', invoiceNos),
   getCustomerStatement: (params) => ipcRenderer.invoke('stock:getCustomerStatement', params),
   getPendingInvoices: (params) => ipcRenderer.invoke('stock:getPendingInvoices', params),
   getPaidInvoices: (params) => ipcRenderer.invoke('stock:getPaidInvoices', params),
@@ -31,6 +34,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateCheque: (chequeId, chequeData) => ipcRenderer.invoke('cheques:update', chequeId, chequeData),
   deleteCheque: (chequeId) => ipcRenderer.invoke('cheques:delete', chequeId),
   getPendingChequeAlerts: () => ipcRenderer.invoke('cheques:getPendingAlerts'),
+
+  // Staff daily collections
+  getCollections: (filters) => ipcRenderer.invoke('collections:getAll', filters),
+  createCollection: (data) => ipcRenderer.invoke('collections:create', data),
+  updateCollection: (id, data) => ipcRenderer.invoke('collections:update', id, data),
+  deleteCollection: (id) => ipcRenderer.invoke('collections:delete', id),
+  setCollectionPosted: (id) => ipcRenderer.invoke('collections:setPosted', id),
 
   // File operations
   openFile: () => ipcRenderer.invoke('dialog:openFile'),

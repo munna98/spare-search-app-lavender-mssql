@@ -391,6 +391,137 @@ export async function getCustomerLedgers() {
   }
 }
 
+// Staff / employee ledgers (collections "collected by")
+export async function getStaffLedgers() {
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        return [];
+      }
+    } else {
+      return [];
+    }
+  }
+
+  try {
+    const request = stockPool.request();
+    request.timeout = 15000;
+
+    const result = await request.query(`
+      SELECT
+        LedgerID,
+        LedgerName
+      FROM
+        dbo.acc_Ledger
+      WHERE
+        ParentID = 120
+        AND LedgerName IS NOT NULL
+      ORDER BY
+        LedgerName
+    `);
+
+    return result.recordset.map(row => ({
+      ledgerId: row.LedgerID,
+      ledgerName: row.LedgerName
+    }));
+  } catch (error) {
+    console.error('Error fetching staff ledgers:', error);
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+    return [];
+  }
+}
+
+// Party (customer) name for sales invoices by voucher number — latest row wins
+export async function getSalesPartiesByInvoiceNos(invoiceNos = []) {
+  const unique = [...new Set(
+    invoiceNos.map(n => String(n).trim()).filter(Boolean)
+  )];
+  if (unique.length === 0) {
+    return {};
+  }
+
+  let stockPool = getStockPool();
+  const stockConfig = getStockConfig();
+
+  if (!stockPool || !stockPool.connected) {
+    if (stockConfig) {
+      try {
+        await initializeStockDatabase(stockConfig);
+        stockPool = getStockPool();
+      } catch (error) {
+        console.error('Failed to reconnect stock database:', error);
+        return {};
+      }
+    } else {
+      return {};
+    }
+  }
+
+  try {
+    const request = stockPool.request();
+    request.timeout = 15000;
+    unique.forEach((inv, i) => {
+      request.input(`inv${i}`, sql.NVarChar, inv);
+    });
+    const inList = unique.map((_, i) => `@inv${i}`).join(', ');
+
+    const result = await request.query(`
+      WITH ranked AS (
+        SELECT
+          CAST(itm.VoucherNo AS NVARCHAR(50)) AS InvoiceNo,
+          ISNULL(al.LedgerName, 'N/A') AS PartyName,
+          ROW_NUMBER() OVER (
+            PARTITION BY itm.VoucherNo
+            ORDER BY itm.TransDate DESC, itm.TransMasterID DESC
+          ) AS rn
+        FROM
+          dbo.inv_TransMaster itm
+        LEFT JOIN
+          dbo.acc_Ledger al ON itm.CashPartyID = al.LedgerID
+        WHERE
+          itm.VoucherID = 9
+          AND CAST(itm.VoucherNo AS NVARCHAR(50)) IN (${inList})
+      )
+      SELECT InvoiceNo, PartyName
+      FROM ranked
+      WHERE rn = 1
+    `);
+
+    const map = {};
+    result.recordset.forEach(row => {
+      map[String(row.InvoiceNo)] = row.PartyName;
+    });
+    return map;
+  } catch (error) {
+    console.error('Error fetching sales parties by invoice:', error);
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+      if (stockConfig) {
+        try {
+          await initializeStockDatabase(stockConfig);
+        } catch (retryError) {
+          console.error('Retry failed:', retryError);
+        }
+      }
+    }
+    return {};
+  }
+}
+
 
 // Get customer statement report (Sales and Sales Returns)
 export async function getCustomerStatement(params) {
