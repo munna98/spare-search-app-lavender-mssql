@@ -11,7 +11,7 @@ import {
 import SearchableSelect from './SearchableSelect';
 import { toast } from 'react-toastify';
 
-const PAYMENT_MODES = ['Cash', 'Card', 'Cheque'];
+const PAYMENT_MODES = ['Cash', 'Card', 'Bank'];
 
 const STATUS_OPTIONS = [
   { value: 'Pending', label: 'Pending', color: 'bg-orange-100 text-orange-900' },
@@ -37,6 +37,7 @@ export default function DailyCollection() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [showDetailed, setShowDetailed] = useState(false);
 
   const [filters, setFilters] = useState({
     startDate: todayISO(),
@@ -343,19 +344,19 @@ export default function DailyCollection() {
   const summary = useMemo(() => {
     let cash = 0;
     let card = 0;
-    let cheque = 0;
+    let bank = 0;
     collections.forEach((c) => {
       const a = parseFloat(c.amount) || 0;
       if (c.paymentMode === 'Cash') cash += a;
       else if (c.paymentMode === 'Card') card += a;
-      else if (c.paymentMode === 'Cheque') cheque += a;
+      else if (c.paymentMode === 'Bank' || c.paymentMode === 'Cheque') bank += a;
     });
     cash = round2(cash);
     card = round2(card);
-    cheque = round2(cheque);
+    bank = round2(bank);
     const cardFee = round2(card * 0.017);
-    const totalCollection = round2(cash + cheque + (card - cardFee));
-    return { cash, card, cheque, cardFee, totalCollection };
+    const totalCollection = round2(cash + bank + (card - cardFee));
+    return { cash, card, bank, cardFee, totalCollection };
   }, [collections]);
 
   const filterActive = useMemo(() => {
@@ -377,6 +378,7 @@ export default function DailyCollection() {
         <thead className="bg-orange-100/90">
           <tr>
             <th className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Sl</th>
+            <th className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Date</th>
             <th className="px-3 py-3 text-left">
               <div className="text-xs normal-case font-normal min-w-[160px]">
                 <SearchableSelect
@@ -395,28 +397,32 @@ export default function DailyCollection() {
                 />
               </div>
             </th>
-            <th className="px-3 py-3 text-left">
-              <div className="text-xs normal-case font-normal min-w-[160px]">
-                <SearchableSelect
-                  options={staffFilterOptions}
-                  value={filters.staffLedgerId}
-                  onChange={(val) => {
-                    const newFilters = { ...filtersRef.current, staffLedgerId: val };
-                    setFilters(newFilters);
-                    loadCollections(newFilters);
-                  }}
-                  placeholder="Collected"
-                  loading={loadingStaff}
-                  disabled={loadingStaff}
-                  className="text-xs"
-                  buttonClassName="bg-transparent border-none shadow-none p-0 text-xs font-semibold text-slate-700 uppercase focus:ring-0"
-                />
-              </div>
-            </th>
+            {showDetailed && (
+              <th className="px-3 py-3 text-left">
+                <div className="text-xs normal-case font-normal min-w-[160px]">
+                  <SearchableSelect
+                    options={staffFilterOptions}
+                    value={filters.staffLedgerId}
+                    onChange={(val) => {
+                      const newFilters = { ...filtersRef.current, staffLedgerId: val };
+                      setFilters(newFilters);
+                      loadCollections(newFilters);
+                    }}
+                    placeholder="Collected"
+                    loading={loadingStaff}
+                    disabled={loadingStaff}
+                    className="text-xs"
+                    buttonClassName="bg-transparent border-none shadow-none p-0 text-xs font-semibold text-slate-700 uppercase focus:ring-0"
+                  />
+                </div>
+              </th>
+            )}
             <th className="px-3 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Cash</th>
             <th className="px-3 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Card</th>
-            <th className="px-3 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Cheque</th>
-            <th className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Invoice</th>
+            <th className="px-3 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Bank</th>
+            {showDetailed && (
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Invoice</th>
+            )}
             <th className="px-3 py-3 text-left w-24">
               <select
                 value={filters.status}
@@ -444,7 +450,7 @@ export default function DailyCollection() {
         <tbody className="bg-white divide-y divide-orange-100">
           {loading ? (
             <tr>
-              <td colSpan="9" className="px-4 py-12 text-center">
+              <td colSpan={showDetailed ? 10 : 8} className="px-4 py-12 text-center">
                 <div className="flex justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
                 </div>
@@ -464,8 +470,11 @@ export default function DailyCollection() {
                   className={`hover:bg-orange-50/90 ${idx % 2 === 1 ? 'bg-orange-50/70' : ''}`}
                 >
                   <td className="px-3 py-2 text-sm text-slate-700">{idx + 1}</td>
+                  <td className="px-3 py-2 text-sm text-slate-900 whitespace-nowrap">{formatDate(row.collectionDate)}</td>
                   <td className="px-3 py-2 text-sm text-slate-900">{customer}</td>
-                  <td className="px-3 py-2 text-sm text-slate-900">{row.staffName}</td>
+                  {showDetailed && (
+                    <td className="px-3 py-2 text-sm text-slate-900">{row.staffName}</td>
+                  )}
                   <td className="px-3 py-2 text-sm text-right tabular-nums">
                     {row.paymentMode === 'Cash' ? amt : ''}
                   </td>
@@ -473,9 +482,11 @@ export default function DailyCollection() {
                     {row.paymentMode === 'Card' ? amt : ''}
                   </td>
                   <td className="px-3 py-2 text-sm text-right tabular-nums">
-                    {row.paymentMode === 'Cheque' ? amt : ''}
+                    {row.paymentMode === 'Bank' || row.paymentMode === 'Cheque' ? amt : ''}
                   </td>
-                  <td className="px-3 py-2 text-sm font-medium text-slate-900">{row.invoiceNo}</td>
+                  {showDetailed && (
+                    <td className="px-3 py-2 text-sm font-medium text-slate-900">{row.invoiceNo}</td>
+                  )}
                   <td className="px-3 py-2 text-sm">
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -527,7 +538,7 @@ export default function DailyCollection() {
             })
           ) : (
             <tr>
-              <td colSpan="9" className="px-4 py-12 text-center text-slate-500">
+              <td colSpan={showDetailed ? 10 : 8} className="px-4 py-12 text-center text-slate-500">
                 No records for these filters.
               </td>
             </tr>
@@ -537,29 +548,31 @@ export default function DailyCollection() {
           <tfoot className="bg-orange-50/90 border-t border-orange-200">
             <tr>
               <td className="px-3 py-2 text-sm" />
-              <td className="px-3 py-2 text-sm font-semibold text-slate-800" colSpan={2}>
+              <td className="px-3 py-2 text-sm font-semibold text-slate-800" colSpan={showDetailed ? 3 : 2}>
                 Sub total
               </td>
               <td className="px-3 py-2 text-sm text-right tabular-nums font-medium text-slate-900">
                 {formatCurrency(summary.cash)}
               </td>
               <td className="px-3 py-2 text-sm text-right tabular-nums font-medium text-slate-900">
-                <span>{formatCurrency(summary.card)}</span>{' '}
-                <span className="text-red-700">−{formatCurrency(summary.cardFee)}</span>
+                {formatCurrency(summary.card)}
               </td>
               <td className="px-3 py-2 text-sm text-right tabular-nums font-medium text-slate-900">
-                {formatCurrency(summary.cheque)}
+                {formatCurrency(summary.bank)}
               </td>
-              <td className="px-3 py-2 text-sm" />
+              {showDetailed && <td className="px-3 py-2 text-sm" />}
               <td className="px-3 py-2 text-sm" />
               <td className="px-3 py-2" />
             </tr>
             <tr className="border-t border-orange-300 bg-orange-100/80">
               <td className="px-3 py-2.5 text-sm" />
-              <td className="px-3 py-2.5 text-sm font-bold text-slate-900" colSpan={5}>
+              <td className="px-3 py-2.5 text-sm font-medium text-slate-700" colSpan={showDetailed ? 3 : 2}>
+                Card commission: <span className="text-red-600 font-semibold tabular-nums ml-1">−{formatCurrency(summary.cardFee)}</span>
+              </td>
+              <td className="px-3 py-2.5 text-sm font-bold text-slate-900 text-right pr-4" colSpan={3}>
                 Total collection
               </td>
-              <td className="px-3 py-2.5 text-sm text-right font-bold text-slate-900 tabular-nums" colSpan={3}>
+              <td className="px-3 py-2.5 text-sm text-right font-bold text-slate-900 tabular-nums" colSpan={showDetailed ? 3 : 2}>
                 {formatCurrency(summary.totalCollection)}
               </td>
             </tr>
@@ -578,7 +591,8 @@ export default function DailyCollection() {
     partyByInvoice,
     summary,
     customerFilterOptions,
-    staffFilterOptions
+    staffFilterOptions,
+    showDetailed
   ]);
 
   return (
@@ -590,6 +604,17 @@ export default function DailyCollection() {
         <h1 className="text-3xl font-bold text-gray-900">Daily Collection</h1>
 
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowDetailed(!showDetailed)}
+            className={`px-4 py-2 border rounded-md transition-colors flex items-center gap-2 text-sm font-medium ${
+              showDetailed
+                ? 'bg-orange-100 border-orange-300 text-orange-800'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Show detailed
+          </button>
           <button
             type="button"
             onClick={() => setShowForm(!showForm)}
@@ -812,6 +837,28 @@ export default function DailyCollection() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Cash</span>
+          <span className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(summary.cash)}</span>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Card</span>
+          <span className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(summary.card)}</span>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Card Commission</span>
+          <span className="text-xl font-bold text-red-600 mt-1">-{formatCurrency(summary.cardFee)}</span>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col">
+          <span className="text-xs font-semibold text-slate-500 uppercase">Bank</span>
+          <span className="text-xl font-bold text-slate-900 mt-1">{formatCurrency(summary.bank)}</span>
+        </div>
+        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-sm flex flex-col">
+          <span className="text-xs font-semibold text-orange-800 uppercase">Total</span>
+          <span className="text-xl font-bold text-orange-900 mt-1">{formatCurrency(summary.totalCollection)}</span>
         </div>
       </div>
 

@@ -36,7 +36,7 @@ export async function createCollection(data) {
   request.input('staff_name', sql.NVarChar, data.staffName);
   request.input('customer_ledger_id', sql.Int, customerLedgerId);
   request.input('customer_name', sql.NVarChar, String(data.customerName).trim());
-  request.input('payment_mode', sql.NVarChar, data.paymentMode);
+  request.input('payment_mode', sql.NVarChar, data.paymentMode === 'Bank' ? 'Cheque' : data.paymentMode);
   request.input('amount', sql.Decimal(18, 2), amount);
   request.input('invoice_no', sql.NVarChar, data.invoiceNo);
 
@@ -59,7 +59,7 @@ function mapRow(row) {
     staffName: row.staff_name,
     customerLedgerId: row.customer_ledger_id,
     customerName: row.customer_name,
-    paymentMode: row.payment_mode,
+    paymentMode: row.payment_mode === 'Cheque' ? 'Bank' : row.payment_mode,
     amount: row.amount,
     invoiceNo: row.invoice_no,
     status: row.status,
@@ -80,7 +80,8 @@ export async function getCollections(filters = {}) {
   }
 
   if (filters.paymentMode) {
-    request.input('payment_mode', sql.NVarChar, filters.paymentMode);
+    const pm = filters.paymentMode === 'Bank' ? 'Cheque' : filters.paymentMode;
+    request.input('payment_mode', sql.NVarChar, pm);
     conditions.push('payment_mode = @payment_mode');
   }
 
@@ -165,7 +166,7 @@ export async function updateCollection(id, data) {
   request.input('staff_name', sql.NVarChar, data.staffName);
   request.input('customer_ledger_id', sql.Int, customerLedgerId);
   request.input('customer_name', sql.NVarChar, String(data.customerName).trim());
-  request.input('payment_mode', sql.NVarChar, data.paymentMode);
+  request.input('payment_mode', sql.NVarChar, data.paymentMode === 'Bank' ? 'Cheque' : data.paymentMode);
   request.input('amount', sql.Decimal(18, 2), amount);
   request.input('invoice_no', sql.NVarChar, data.invoiceNo);
   request.input('status', sql.NVarChar, data.status || existing.recordset[0].status || 'Pending');
