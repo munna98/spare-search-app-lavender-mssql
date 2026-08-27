@@ -406,9 +406,10 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
                       <div style={{
                         background: 'repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 4px)',
                         width: '90%',
-                        height: '70%'
+                        height: '60%',
+                        flexShrink: 0
                       }}></div>
-                      <span style={{ fontSize: '7px', marginTop: '1px' }}>{item.partNumber}</span>
+                      <span style={{ fontSize: '7px', marginTop: '1px', flexShrink: 0 }}>{item.partNumber}</span>
                     </div>
                   );
                 default: content = '';
