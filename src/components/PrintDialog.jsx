@@ -120,28 +120,31 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <style>
             @page { 
-              margin: 10mm;
-              size: auto;
+              size: ${config.customWidth}mm ${config.customHeight}mm;
+              margin: 0;
             }
             body { 
               margin: 0; 
-              padding: 20px; 
+              padding: ${previewOnly ? '20px' : '0'}; 
               font-family: Arial, sans-serif;
               background: ${previewOnly ? '#f3f4f6' : 'white'};
             }
             .label-container {
-              display: flex;
+              display: ${previewOnly ? 'flex' : 'block'};
               flex-wrap: wrap;
-              gap: ${previewOnly ? '10mm' : '5mm'};
+              gap: ${previewOnly ? '10mm' : '0'};
             }
             .label {
               width: ${config.customWidth}mm;
               height: ${config.customHeight}mm;
-              border: ${previewOnly ? '2px solid #ccc' : '1px dashed #ddd'};
+              border: ${previewOnly ? '2px solid #ccc' : 'none'};
               position: relative;
               page-break-inside: avoid;
+              page-break-after: ${previewOnly ? 'auto' : 'always'};
               background: white;
               box-shadow: ${previewOnly ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'};
+              overflow: hidden;
+              box-sizing: border-box;
             }
             .field { 
               position: absolute;
@@ -190,23 +193,30 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
               }
             ` : ''}
             @media print {
+              @page {
+                size: ${config.customWidth}mm ${config.customHeight}mm;
+                margin: 0;
+              }
               body { 
                 padding: 0;
+                margin: 0;
                 background: white;
+              }
+              .label-container {
+                display: block;
+                gap: 0;
+                margin: 0;
+                padding: 0;
               }
               .label { 
                 border: none;
                 box-shadow: none;
                 margin: 0;
-              }
-              .label-container {
-                gap: 2mm;
+                page-break-after: always;
+                page-break-inside: avoid;
               }
               .preview-header {
                 display: none;
-              }
-              @page {
-                margin: 5mm;
               }
             }
           </style>
