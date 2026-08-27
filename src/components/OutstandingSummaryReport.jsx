@@ -13,6 +13,15 @@ export default function OutstandingSummaryReport({ onDrillDown }) {
     const [reportType, setReportType] = useState('net'); // 'gross' or 'net'
     const [clickedCell, setClickedCell] = useState(null); // { ledgerId, month }
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedMonths, setSelectedMonths] = useState(() => new Set()); // header click filter
+
+    const toggleMonth = (month) => {
+        setSelectedMonths(prev => {
+            const next = new Set(prev);
+            next.has(month) ? next.delete(month) : next.add(month);
+            return next;
+        });
+    };
 
     // Generate year options (last 3 years)
     const yearOptions = [];
@@ -74,9 +83,12 @@ export default function OutstandingSummaryReport({ onDrillDown }) {
         return amount.toFixed(2);
     };
 
-    const filteredData = data.filter(customer =>
-        customer.ledgerName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredData = data.filter(customer => {
+        const matchesName = customer.ledgerName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesMonths = selectedMonths.size === 0 ||
+            [...selectedMonths].some(m => Math.abs(customer.months[m] || 0) > 0.01);
+        return matchesName && matchesMonths;
+    });
 
     // Calculate monthly totals based on filtered data
     const monthlyTotals = {};
@@ -170,6 +182,16 @@ export default function OutstandingSummaryReport({ onDrillDown }) {
                             )}
                         </div>
                     </div>
+
+                    {selectedMonths.size > 0 && (
+                        <button
+                            onClick={() => setSelectedMonths(new Set())}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-full hover:bg-blue-700 transition-colors"
+                        >
+                            {[...selectedMonths].sort((a, b) => a - b).map(m => MONTH_NAMES[m - 1]).join(', ')}
+                            <XMarkIcon className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -188,11 +210,23 @@ export default function OutstandingSummaryReport({ onDrillDown }) {
                                     <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 sticky left-0 top-0 bg-blue-100 z-30 w-[300px] min-w-[300px] max-w-[300px] truncate">
                                         Customer Name
                                     </th>
-                                    {MONTH_NAMES.map((name, i) => (
-                                        <th key={i} className="px-3 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-blue-200 min-w-[60px]">
-                                            {name}
-                                        </th>
-                                    ))}
+                                    {MONTH_NAMES.map((name, i) => {
+                                        const month = i + 1;
+                                        const active = selectedMonths.has(month);
+                                        return (
+                                            <th
+                                                key={i}
+                                                onClick={() => toggleMonth(month)}
+                                                title={`Click to ${active ? 'remove' : 'show only'} customers with a ${name} balance`}
+                                                className={`px-3 py-3 text-right text-xs font-bold uppercase tracking-wider border-b min-w-[60px] cursor-pointer select-none transition-colors ${active
+                                                    ? 'bg-blue-600 text-white border-blue-700'
+                                                    : 'text-gray-700 border-blue-200 hover:bg-blue-200'
+                                                    }`}
+                                            >
+                                                {name}
+                                            </th>
+                                        );
+                                    })}
                                     <th className="px-3 py-3 text-right text-xs font-bold text-gray-900 uppercase tracking-wider bg-blue-200 border-b border-blue-300 min-w-[100px] sticky right-0 top-0 z-30">
                                         Total
                                     </th>
@@ -260,9 +294,13 @@ export default function OutstandingSummaryReport({ onDrillDown }) {
                 <div className="bg-white rounded-lg shadow-md p-12 text-center mt-4">
                     <MagnifyingGlassIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-500 text-lg">
-                        {searchQuery
-                            ? `No customers matching "${searchQuery}" found`
-                            : `No outstanding balances found for ${selectedYear}`}
+                        {searchQuery && selectedMonths.size > 0
+                            ? `No customers matching "${searchQuery}" with a balance in ${[...selectedMonths].sort((a, b) => a - b).map(m => MONTH_NAMES[m - 1]).join(', ')}`
+                            : searchQuery
+                                ? `No customers matching "${searchQuery}" found`
+                                : selectedMonths.size > 0
+                                    ? `No customers with a balance in ${[...selectedMonths].sort((a, b) => a - b).map(m => MONTH_NAMES[m - 1]).join(', ')}`
+                                    : `No outstanding balances found for ${selectedYear}`}
                     </p>
                 </div>
             ) : (

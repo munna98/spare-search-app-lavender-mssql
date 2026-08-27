@@ -296,29 +296,37 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
       .filter(f => f.enabled)
       .map((field, fieldIdx) => {
         let content = '';
-        let style = `left: ${field.x}mm; top: ${field.y}mm;`;
+        const alignment = field.alignment || 'center';
+        let transformStyle = '';
+        if (alignment === 'center') {
+          transformStyle = 'transform: translateX(-50%);';
+        } else if (alignment === 'right') {
+          transformStyle = 'transform: translateX(-100%);';
+        }
+
+        let style = `left: ${field.x}mm; top: ${field.y}mm; ${transformStyle} text-align: ${alignment};`;
         let className = 'field';
 
         switch (field.type) {
           case 'brand':
             content = item.brand || '';
-            style += ` font-size: ${field.fontSize}pt;`;
+            style += ` font-size: ${field.fontSize}pt; white-space: nowrap;`;
             break;
           case 'partNumber':
             content = item.partNumber || '';
-            style += ` font-size: ${field.fontSize}pt; font-weight: bold;`;
+            style += ` font-size: ${field.fontSize}pt; font-weight: bold; white-space: nowrap;`;
             break;
           case 'description':
             content = item.description || '';
-            style += ` font-size: ${field.fontSize}pt; max-width: ${config.customWidth - field.x - 2}mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
+            style += ` font-size: ${field.fontSize}pt; max-width: ${config.customWidth - 4}mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`;
             break;
           case 'price':
             content = `${item.price || '0.00'}`;
-            style += ` font-size: ${field.fontSize}pt; font-weight: bold;`;
+            style += ` font-size: ${field.fontSize}pt; font-weight: bold; white-space: nowrap;`;
             break;
           case 'barcode':
             className += ' barcode-field';
-            style = `left: ${field.x}mm; top: ${field.y}mm; width: ${field.width}mm; height: ${field.height + 3}mm;`;
+            style += ` width: ${field.width || 40}mm; height: ${(field.height || 10) + 3}mm;`;
             return `
               <div class="${className}" style="${style}">
                 <svg id="barcode-${uniqueId}-${fieldIdx}"></svg>
@@ -326,7 +334,7 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
             `;
           case 'text':
             content = field.label;
-            style += ` font-size: ${field.fontSize}pt;`;
+            style += ` font-size: ${field.fontSize}pt; white-space: nowrap;`;
             break;
           default:
             content = '';
@@ -339,11 +347,95 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
     return `<div class="label">${fields}</div>`;
   };
 
+  const renderLivePreview = () => {
+    if (!config || !items.length) return null;
+    const item = items[0];
+    const width = config.customWidth || 50;
+    const height = config.customHeight || 30;
+    const scale = 240 / width;
+    const previewHeight = height * scale;
+
+    return (
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+          Live Label Preview ({width}mm × {height}mm)
+        </label>
+        <div className="flex justify-center bg-gray-100 p-3 rounded-lg border">
+          <div 
+            className="bg-white border border-gray-300 relative shadow-sm overflow-hidden rounded" 
+            style={{ width: '240px', height: `${previewHeight}px` }}
+          >
+            {config.fields.filter(f => f.enabled).map((field, fieldIdx) => {
+              const alignment = field.alignment || 'center';
+              const transform = alignment === 'center' ? 'translateX(-50%)' : alignment === 'right' ? 'translateX(-100%)' : 'none';
+              let content = '';
+
+              switch (field.type) {
+                case 'brand': content = item.brand || ''; break;
+                case 'partNumber': content = item.partNumber || ''; break;
+                case 'description': content = item.description || ''; break;
+                case 'price': content = `$${item.price || '0.00'}`; break;
+                case 'text': content = field.label; break;
+                case 'barcode':
+                  return (
+                    <div
+                      key={fieldIdx}
+                      style={{
+                        position: 'absolute',
+                        left: `${field.x * scale}px`,
+                        top: `${field.y * scale}px`,
+                        width: `${(field.width || 40) * scale}px`,
+                        height: `${(field.height || 10) * scale}px`,
+                        transform,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <div style={{
+                        background: 'repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 4px)',
+                        width: '90%',
+                        height: '70%'
+                      }}></div>
+                      <span style={{ fontSize: '7px', marginTop: '1px' }}>{item.partNumber}</span>
+                    </div>
+                  );
+                default: content = '';
+              }
+
+              return (
+                <div
+                  key={fieldIdx}
+                  style={{
+                    position: 'absolute',
+                    left: `${field.x * scale}px`,
+                    top: `${field.y * scale}px`,
+                    fontSize: `${(field.fontSize || 8) * scale / 3.5}px`,
+                    fontWeight: field.type === 'price' || field.type === 'partNumber' ? 'bold' : 'normal',
+                    transform,
+                    textAlign: alignment,
+                    whiteSpace: 'nowrap',
+                    maxWidth: `${(width - 4) * scale}px`,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center">
             <PrinterIcon className="h-6 w-6 text-blue-600 mr-2" />
@@ -354,7 +446,9 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 max-h-[80vh] overflow-y-auto">
+          {renderLivePreview()}
+
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-3">
               {isBulk 
@@ -362,7 +456,7 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
                 : 'Printing single label'}
             </p>
             
-            <div className="max-h-48 overflow-y-auto space-y-2">
+            <div className="max-h-36 overflow-y-auto space-y-2">
               {items.map((item, idx) => (
                 <div key={idx} className="p-3 bg-gray-50 rounded-lg border">
                   <div className="flex items-start justify-between">

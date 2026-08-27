@@ -7,7 +7,10 @@ import {
   TrashIcon,
   EyeIcon,
   Cog6ToothIcon,
-  ArrowsPointingOutIcon
+  ArrowsPointingOutIcon,
+  Bars3BottomLeftIcon,
+  Bars3CenterLeftIcon,
+  Bars3BottomRightIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
 
@@ -18,11 +21,11 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
     customWidth: 50,
     customHeight: 30,
     fields: [
-      { id: 1, type: 'brand', label: 'Brand', x: 5, y: 3, fontSize: 8, enabled: true },
-      { id: 2, type: 'barcode', label: 'Barcode', x: 5, y: 10, width: 40, height: 10, enabled: true },
-      { id: 3, type: 'partNumber', label: 'Part Number', x: 5, y: 21, fontSize: 7, enabled: true },
-      { id: 4, type: 'description', label: 'Description', x: 5, y: 25, fontSize: 6, enabled: true },
-      { id: 5, type: 'price', label: 'Price', x: 35, y: 3, fontSize: 9, enabled: true }
+      { id: 1, type: 'brand', label: 'Brand', x: 25, y: 3, fontSize: 8, enabled: true, alignment: 'center' },
+      { id: 2, type: 'barcode', label: 'Barcode', x: 25, y: 10, width: 40, height: 10, enabled: true, alignment: 'center' },
+      { id: 3, type: 'partNumber', label: 'Part Number', x: 25, y: 21, fontSize: 7, enabled: true, alignment: 'center' },
+      { id: 4, type: 'description', label: 'Description', x: 25, y: 25, fontSize: 6, enabled: true, alignment: 'center' },
+      { id: 5, type: 'price', label: 'Price', x: 25, y: 3, fontSize: 9, enabled: true, alignment: 'center' }
     ]
   });
 
@@ -51,7 +54,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
     { value: '40x25', label: '40mm × 25mm (Small)', width: 40, height: 25 },
     { value: '50x30', label: '50mm × 30mm (Medium)', width: 50, height: 30 },
     { value: '60x40', label: '60mm × 40mm (Large)', width: 60, height: 40 },
-    { value: '70x50', label: '70mm × 50mm (Extra Large)', width: 70, height: 50 },
+    { value: '90x25', label: '90mm × 25mm', width: 90, height: 25 },
     { value: 'custom', label: 'Custom Size', width: 0, height: 0 }
   ];
 
@@ -62,6 +65,12 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
     { value: 'price', label: 'Price' },
     { value: 'barcode', label: 'Barcode' },
     { value: 'text', label: 'Custom Text' }
+  ];
+
+  const alignmentOptions = [
+    { value: 'left', label: 'Left', Icon: Bars3BottomLeftIcon },
+    { value: 'center', label: 'Center', Icon: Bars3CenterLeftIcon },
+    { value: 'right', label: 'Right', Icon: Bars3BottomRightIcon }
   ];
 
   useEffect(() => {
@@ -88,12 +97,22 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
 
   const handleLabelSizeChange = (value) => {
     const size = labelSizes.find(s => s.value === value);
-    setConfig(prev => ({
-      ...prev,
-      labelSize: value,
-      customWidth: size.width || prev.customWidth,
-      customHeight: size.height || prev.customHeight
-    }));
+    setConfig(prev => {
+      const nextWidth = size.width || prev.customWidth;
+      const nextHeight = size.height || prev.customHeight;
+
+      return {
+        ...prev,
+        labelSize: value,
+        customWidth: nextWidth,
+        customHeight: nextHeight,
+        fields: prev.fields.map(field => ({
+          ...field,
+          x: field.x && field.alignment !== 'left' && field.alignment !== 'right' ? nextWidth / 2 : field.x,
+          alignment: field.alignment || 'center'
+        }))
+      };
+    });
   };
 
   const addField = () => {
@@ -101,10 +120,11 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
       id: Date.now(),
       type: 'text',
       label: 'New Field',
-      x: 10,
+      x: config.customWidth / 2,
       y: 10,
       fontSize: 10,
-      enabled: true
+      enabled: true,
+      alignment: 'center'
     };
     setConfig(prev => ({
       ...prev,
@@ -169,6 +189,9 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
 
     const scaleX = 400 / config.customWidth;
     const scaleY = 300 / config.customHeight;
+    const alignment = field.alignment || 'center';
+    const alignItems = alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : 'center';
+    const transform = alignment === 'center' ? 'translateX(-50%)' : alignment === 'right' ? 'translateX(-100%)' : 'none';
 
     if (field.type === 'barcode') {
       return (
@@ -184,9 +207,11 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
             border: selectedField === field.id ? '2px solid #3B82F6' : '1px solid #E5E7EB',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
+            alignItems,
             justifyContent: 'center',
-            backgroundColor: selectedField === field.id ? '#EFF6FF' : 'transparent'
+            backgroundColor: selectedField === field.id ? '#EFF6FF' : 'transparent',
+            transform,
+            textAlign: alignment
           }}
           onMouseDown={(e) => handleMouseDown(e, field)}
           className="hover:border-blue-400 transition-colors"
@@ -207,6 +232,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
       case 'partNumber': content = previewData.partNumber; break;
       case 'description': content = previewData.description; break;
       case 'price': content = `$${previewData.price}`; break;
+      case 'text': content = field.label; break;
       default: content = field.label;
     }
 
@@ -224,9 +250,11 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
           padding: '2px 4px',
           backgroundColor: selectedField === field.id ? '#EFF6FF' : 'transparent',
           whiteSpace: 'nowrap',
-          maxWidth: `${(config.customWidth - field.x - 2) * scaleX}px`,
+          maxWidth: `${(config.customWidth - 4) * scaleX}px`,
           overflow: 'hidden',
-          textOverflow: 'ellipsis'
+          textOverflow: 'ellipsis',
+          transform,
+          textAlign: alignment
         }}
         onMouseDown={(e) => handleMouseDown(e, field)}
         className="hover:border-blue-400 transition-colors"
@@ -258,13 +286,12 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
             {/* Left Panel - Settings */}
             <div className="space-y-6">
               <div>
-                {/* <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
                   <Cog6ToothIcon className="h-5 w-5 mr-2" />
                   Label Settings
-                </h3> */}
-                
-                {/* Barcode Type */}
-                {/* <div className="mb-4">
+                </h3>
+
+                <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Barcode Type
                   </label>
@@ -277,10 +304,9 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                       <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
                   </select>
-                </div> */}
+                </div>
 
-                {/* Label Size */}
-                {/* <div className="mb-4">
+                <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Label Size
                   </label>
@@ -293,10 +319,9 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                       <option key={size.value} value={size.value}>{size.label}</option>
                     ))}
                   </select>
-                </div> */}
+                </div>
 
-                {/* Custom Size Inputs */}
-                {/* {config.labelSize === 'custom' && (
+                {config.labelSize === 'custom' && (
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -325,11 +350,10 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                       />
                     </div>
                   </div>
-                )} */}
+                )}
               </div>
 
-              {/* Fields List */}
-              {/* <div>
+              <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-800 flex items-center">
                     <ArrowsPointingOutIcon className="h-5 w-5 mr-2" />
@@ -390,6 +414,27 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                               <option key={type.value} value={type.value}>{type.label}</option>
                             ))}
                           </select>
+
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Alignment</label>
+                            <div className="flex gap-2">
+                              {alignmentOptions.map(({ value, label, Icon }) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  title={label}
+                                  onClick={() => updateField(field.id, { alignment: value })}
+                                  className={`p-2 border rounded-md transition-colors ${
+                                    (field.alignment || 'center') === value
+                                      ? 'bg-blue-100 border-blue-500 text-blue-700'
+                                      : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <Icon className="h-4 w-4" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
                           <div className="grid grid-cols-2 gap-2">
                             <div>
@@ -471,7 +516,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                     </div>
                   ))}
                 </div>
-              </div> */}
+              </div>
             </div>
 
             {/* Middle Panel - Canvas Preview */}
@@ -482,10 +527,10 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
               </h3> */}
               <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
                 <EyeIcon className="h-5 w-5 mr-2" />
-                Barcode feature coming soon...
+                Label Preview
               </h3>
-              
-              {/* <div className="bg-gray-100 p-6 rounded-lg border-2 border-gray-300">
+
+              <div className="bg-gray-100 p-6 rounded-lg border-2 border-gray-300">
                 <div className="bg-white mx-auto shadow-lg" style={{ width: '400px', height: '300px' }}>
                   <div
                     id="label-canvas"
@@ -496,7 +541,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                     style={{ cursor: isDragging ? 'grabbing' : 'default' }}
                   >
                     {config.fields.map(renderFieldPreview)}
-                    
+
                     {config.fields.filter(f => f.enabled).length === 0 && (
                       <div className="flex items-center justify-center h-full text-gray-400">
                         <div className="text-center">
@@ -508,15 +553,14 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="mt-4 text-sm text-gray-600 text-center space-y-1">
                   <p className="font-medium">Actual size: {config.customWidth}mm × {config.customHeight}mm</p>
                   <p className="text-xs">💡 Click a field to select • Drag to move • Edit properties in left panel</p>
                 </div>
-              </div> */}
+              </div>
 
-              {/* Preview Data Editor */}
-              {/* <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                 <h4 className="font-medium text-sm text-gray-700 mb-3 flex items-center">
                   <EyeIcon className="h-4 w-4 mr-2" />
                   Test Preview Data
@@ -559,10 +603,9 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                     />
                   </div>
                 </div>
-              </div> */}
+              </div>
 
-              {/* Help Section */}
-              {/* <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-sm text-blue-900 mb-2">Quick Guide:</h4>
                 <ul className="text-xs text-blue-800 space-y-1">
                   <li>• Select barcode type and label size from left panel</li>
@@ -572,7 +615,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
                   <li>• Add custom text fields for static labels</li>
                   <li>• Save configuration before printing labels</li>
                 </ul>
-              </div> */}
+              </div>
             </div>
           </div>
         </div>
