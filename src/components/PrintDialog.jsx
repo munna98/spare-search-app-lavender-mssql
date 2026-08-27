@@ -6,6 +6,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-toastify';
+import JsBarcode from 'jsbarcode';
 
 export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) {
   const [quantity, setQuantity] = useState(1);
@@ -57,67 +58,11 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
       }
     });
 
-    // Generate barcode scripts with error handling
-    const barcodeScripts = [];
-    items.forEach(item => {
-      for (let i = 0; i < quantity; i++) {
-        const barcodeFields = config.fields.filter(f => f.enabled && f.type === 'barcode');
-        barcodeFields.forEach((field, fieldIdx) => {
-          // Sanitize part number and determine best format
-          const partNumber = (item.partNumber || '').toString().trim();
-          const barcodeId = `barcode-${item.id}-${i}-${fieldIdx}`;
-          
-          barcodeScripts.push(`
-            try {
-              var partNum = "${partNumber}";
-              var format = "${config.barcodeType}";
-              var elem = document.getElementById("${barcodeId}");
-              
-              if (!elem) {
-                console.error("Element not found: ${barcodeId}");
-              } else if (!partNum) {
-                console.error("Empty part number for ${barcodeId}");
-              } else {
-                // Try to generate barcode with error handling
-                try {
-                  JsBarcode("#${barcodeId}", partNum, {
-                    format: format,
-                    width: 2,
-                    height: ${Math.round(field.height * 3.779527559)},
-                    displayValue: false,
-                    margin: 0,
-                    valid: function(valid) {
-                      if (!valid) {
-                        console.warn("Invalid barcode format for: " + partNum + " with format: " + format);
-                      }
-                    }
-                  });
-                } catch (formatError) {
-                  console.warn("Format error with ${config.barcodeType}, trying CODE128:", formatError);
-                  // Fallback to CODE128 which is most flexible
-                  JsBarcode("#${barcodeId}", partNum, {
-                    format: "CODE128",
-                    width: 2,
-                    height: ${Math.round(field.height * 3.779527559)},
-                    displayValue: false,
-                    margin: 0
-                  });
-                }
-              }
-            } catch (err) {
-              console.error("Barcode generation error for ${barcodeId}:", err.message);
-            }
-          `);
-        });
-      }
-    });
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>${previewOnly ? 'Print Preview' : 'Print Labels'}</title>
-          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <style>
             @page { 
               size: ${config.customWidth}mm ${config.customHeight}mm;
@@ -231,9 +176,6 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
               <p style="color: #6b7280; font-size: 14px;">
                 Label size: ${config.customWidth}mm × ${config.customHeight}mm
               </p>
-              <p style="color: #ef4444; font-size: 12px; margin-top: 10px;">
-                ⚠️ Wait for barcodes to load before printing (1-2 seconds)
-              </p>
               <button class="print-button" onclick="window.print()">
                 🖨️ Print Labels
               </button>
@@ -242,63 +184,71 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
           <div class="label-container">
             ${labelsHtml}
           </div>
-          <script>
-            function generateBarcodes() {
-              var successCount = 0;
-              var errorCount = 0;
-              
-              try {
-                ${barcodeScripts.join('\n                ')}
-                
-                // Count generated barcodes
-                var barcodes = document.querySelectorAll('svg[id^="barcode-"]');
-                barcodes.forEach(function(svg) {
-                  if (svg.querySelector('rect') || svg.querySelector('path')) {
-                    successCount++;
-                  } else {
-                    errorCount++;
-                  }
-                });
-                
-                console.log('Barcodes generated: ' + successCount + ' successful, ' + errorCount + ' failed');
-                
-                if (successCount === 0 && errorCount > 0) {
-                  alert('Failed to generate barcodes. This might be due to:\\n\\n' +
-                        '1. Part number format incompatible with ${config.barcodeType}\\n' +
-                        '2. Internet connection issue\\n' +
-                        '3. Invalid characters in part number\\n\\n' +
-                        'Try changing barcode type to CODE128 in settings.');
-                }
-              } catch (error) {
-                console.error('Error generating barcodes:', error);
-                alert('Error: ' + error.message);
-              }
-            }
-
-            // Wait for JsBarcode to load, then generate barcodes
-            function initBarcodes() {
-              if (typeof JsBarcode !== 'undefined') {
-                console.log('JsBarcode loaded, generating barcodes...');
-                generateBarcodes();
-                ${!previewOnly ? 'setTimeout(function() { window.print(); }, 1500);' : ''}
-              } else {
-                console.log('JsBarcode not loaded yet, waiting...');
-                setTimeout(initBarcodes, 200);
-              }
-            }
-
-            // Start initialization
-            if (document.readyState === 'complete') {
-              initBarcodes();
-            } else {
-              window.addEventListener('load', initBarcodes);
-            }
-          </script>
         </body>
       </html>
     `);
 
     printWindow.document.close();
+
+    // Generate barcodes immediately using local JsBarcode module
+    let successCount = 0;
+    let errorCount = 0;
+    const barcodeFields = config.fields.filter(f => f.enabled && f.type === 'barcode');
+
+    items.forEach(item => {
+      for (let i = 0; i < quantity; i++) {
+        barcodeFields.forEach((field, fieldIdx) => {
+          const barcodeId = `barcode-${item.id}-${i}-${fieldIdx}`;
+          const elem = printWindow.document.getElementById(barcodeId);
+          if (elem) {
+            const partNumber = (item.partNumber || '').toString().trim();
+            if (partNumber) {
+              try {
+                JsBarcode(elem, partNumber, {
+                  format: config.barcodeType,
+                  width: 2,
+                  height: Math.round(field.height * 3.779527559),
+                  displayValue: false,
+                  margin: 0
+                });
+                successCount++;
+              } catch (formatError) {
+                console.warn(`Format error with ${config.barcodeType}, trying CODE128:`, formatError);
+                try {
+                  JsBarcode(elem, partNumber, {
+                    format: "CODE128",
+                    width: 2,
+                    height: Math.round(field.height * 3.779527559),
+                    displayValue: false,
+                    margin: 0
+                  });
+                  successCount++;
+                } catch (fallbackError) {
+                  console.error("Barcode generation failed completely:", fallbackError);
+                  errorCount++;
+                }
+              }
+            } else {
+              errorCount++;
+            }
+          } else {
+            errorCount++;
+          }
+        });
+      }
+    });
+
+    console.log(`Barcodes generated: ${successCount} successful, ${errorCount} failed`);
+
+    if (successCount === 0 && errorCount > 0) {
+      toast.error(`Failed to generate barcodes. Check character compatibility for ${config.barcodeType}`);
+    }
+
+    if (!previewOnly) {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
   };
 
   const generateLabelHTML = (item, config, uniqueId) => {
