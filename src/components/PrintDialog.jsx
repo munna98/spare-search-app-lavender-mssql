@@ -190,67 +190,11 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
 
     printWindow.document.close();
 
-    // Generate barcodes after a short delay to ensure DOM is fully ready
-    setTimeout(() => {
-      let successCount = 0;
-      let errorCount = 0;
-      const barcodeFields = config.fields.filter(f => f.enabled && f.type === 'barcode');
-
-      items.forEach(item => {
-        for (let i = 0; i < quantity; i++) {
-          barcodeFields.forEach((field, fieldIdx) => {
-            const barcodeId = `barcode-${item.id}-${i}-${fieldIdx}`;
-            const elem = printWindow.document.getElementById(barcodeId);
-            if (elem) {
-              const partNumber = (item.partNumber || '').toString().trim();
-              if (partNumber) {
-                try {
-                  JsBarcode(elem, partNumber, {
-                    format: config.barcodeType,
-                    width: 2,
-                    height: Math.round(field.height * 3.779527559),
-                    displayValue: false,
-                    margin: 0
-                  });
-                  successCount++;
-                } catch (formatError) {
-                  console.warn(`Format error with ${config.barcodeType}, trying CODE128:`, formatError);
-                  try {
-                    JsBarcode(elem, partNumber, {
-                      format: "CODE128",
-                      width: 2,
-                      height: Math.round(field.height * 3.779527559),
-                      displayValue: false,
-                      margin: 0
-                    });
-                    successCount++;
-                  } catch (fallbackError) {
-                    console.error("Barcode generation failed completely:", fallbackError);
-                    errorCount++;
-                  }
-                }
-              } else {
-                errorCount++;
-              }
-            } else {
-              errorCount++;
-            }
-          });
-        }
-      });
-
-      console.log(`Barcodes generated: ${successCount} successful, ${errorCount} failed`);
-
-      if (successCount === 0 && errorCount > 0) {
-        toast.error(`Failed to generate barcodes. Check character compatibility for ${config.barcodeType}`);
-      }
-
-      if (!previewOnly) {
-        setTimeout(() => {
-          printWindow.print();
-        }, 300);
-      }
-    }, 150);
+    if (!previewOnly) {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
   };
 
   const generateLabelHTML = (item, config, uniqueId) => {
@@ -286,14 +230,51 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
             content = `${item.price || '0.00'}`;
             style += ` font-size: ${field.fontSize}pt; font-weight: bold; white-space: nowrap;`;
             break;
-          case 'barcode':
+          case 'barcode': {
+            const partNumber = (item.partNumber || '')
+              .toString()
+              .replace(/[\r\n]/g, '')
+              .replace(/[\u200B-\u200D\uFEFF]/g, '')
+              .trim();
+
+            let svgString = '';
+            if (partNumber) {
+              try {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                JsBarcode(svg, partNumber, {
+                  format: config.barcodeType,
+                  width: 2,
+                  height: Math.round((field.height || 10) * 3.779527559),
+                  displayValue: false,
+                  margin: 0
+                });
+                svgString = svg.outerHTML;
+              } catch (formatError) {
+                console.warn(`Format error with ${config.barcodeType}, trying CODE128:`, formatError);
+                try {
+                  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                  JsBarcode(svg, partNumber, {
+                    format: "CODE128",
+                    width: 2,
+                    height: Math.round((field.height || 10) * 3.779527559),
+                    displayValue: false,
+                    margin: 0
+                  });
+                  svgString = svg.outerHTML;
+                } catch (fallbackError) {
+                  console.error("Barcode generation failed completely:", fallbackError);
+                }
+              }
+            }
+
             className += ' barcode-field';
             style += ` width: ${field.width || 40}mm; height: ${(field.height || 10) + 3}mm;`;
             return `
               <div class="${className}" style="${style}">
-                <svg id="barcode-${uniqueId}-${fieldIdx}"></svg>
+                ${svgString || '<svg></svg>'}
               </div>
             `;
+          }
           case 'text':
             content = field.label;
             style += ` font-size: ${field.fontSize}pt; white-space: nowrap;`;
