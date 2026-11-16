@@ -231,7 +231,7 @@ export default function BarcodeConfiguration({ isOpen, onClose }) {
       case 'brand': content = previewData.brand; break;
       case 'partNumber': content = previewData.partNumber; break;
       case 'description': content = previewData.description; break;
-      case 'price': content = `$${previewData.price}`; break;
+      case 'price': content = `${previewData.price}`; break;
       case 'text': content = field.label; break;
       default: content = field.label;
     }

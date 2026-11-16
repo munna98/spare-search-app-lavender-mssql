@@ -103,7 +103,7 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
             }
             .barcode-field svg {
               max-width: 100%;
-              height: auto;
+              height: 100%;
             }
             .barcode-text {
               font-size: 7pt;
@@ -317,7 +317,7 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
                 case 'brand': content = item.brand || ''; break;
                 case 'partNumber': content = item.partNumber || ''; break;
                 case 'description': content = item.description || ''; break;
-                case 'price': content = `$${item.price || '0.00'}`; break;
+                case 'price': content = `${item.price || '0.00'}`; break;
                 case 'text': content = field.label; break;
                 case 'barcode':
                   return (
@@ -412,7 +412,7 @@ export default function PrintDialog({ isOpen, onClose, items, isBulk = false }) 
                         <span>{item.description}</span>
                       </div>
                     </div>
-                    <span className="text-sm font-bold text-gray-900">${item.price}</span>
+                    <span className="text-sm font-bold text-gray-900">{item.price}</span>
                   </div>
                 </div>
               ))}

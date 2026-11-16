@@ -83,7 +83,7 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
       <div className="space-y-2 mb-3 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-600">Base:</span>
-          <span className="font-semibold text-gray-900">${basePrice?.toFixed(2)}</span>
+          <span className="font-semibold text-gray-900">{basePrice?.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Margin:</span>
@@ -92,7 +92,7 @@ export default function PriceCalculatorPopup({ isOpen, onClose, basePrice, onCal
         <div className="h-px bg-gray-200"></div>
         <div className="flex justify-between">
           <span className="text-gray-700 font-medium">Final:</span>
-          <span className="font-bold text-lg text-blue-600">${calculatedPrice.toFixed(2)}</span>
+          <span className="font-bold text-lg text-blue-600">{calculatedPrice.toFixed(2)}</span>
         </div>
       </div>
 

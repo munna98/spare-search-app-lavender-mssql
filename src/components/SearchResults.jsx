@@ -57,7 +57,7 @@ export default function SearchResults({ results, query }) {
   };
 
   const handleCalculate = (calculatedPrice, percentage) => {
-    toast.success(`Calculated price: $${calculatedPrice.toFixed(2)} (${percentage}% markup)`, {
+    toast.success(`Calculated price: ${calculatedPrice.toFixed(2)} (${percentage}% markup)`, {
       autoClose: 3000
     });
   };
@@ -335,14 +335,14 @@ export default function SearchResults({ results, query }) {
                           onClick={(e) => handlePriceClick(e, row.cost)}
                           className="text-base font-bold text-gray-900 rounded px-2 hover:text-green-600 hover:bg-green-200"
                         >
-                          ${row.cost?.toFixed(2) || '0.00'}
+                          {row.cost?.toFixed(2) || '0.00'}
                         </button>
                       )}
                     </td>
                     <td className="p-3 border-b border-green-100">
                       {row.salesRate > 0 ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-gray-900">
-                          ${row.salesRate.toFixed(2)}
+                          {row.salesRate.toFixed(2)}
                         </span>
                       ) : (
                         <span className="text-gray-500 font-medium px-2.5 py-0.5">-</span>
@@ -426,7 +426,7 @@ export default function SearchResults({ results, query }) {
                         onClick={(e) => handlePriceClick(e, row.price)}
                         className="text-lg font-bold text-gray-900 rounded px-2 hover:text-blue-600 hover:bg-blue-200"
                       >
-                        ${row.price?.toFixed(2) || '0.00'}
+                        {row.price?.toFixed(2) || '0.00'}
                       </button>
                     </td>
                   </tr>
